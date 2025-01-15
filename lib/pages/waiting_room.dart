@@ -4,6 +4,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'dart:convert';
 
+import '../models/waiting_room_user.dart';
+
 final String bearerToken = dotenv.env['BEARER_TOKEN']!;
 
 
@@ -151,8 +153,37 @@ Future<bool> joinWaitingRoom(int userId, int waitingRoomId) async {
 }
 
 
+Future<bool> create_league_room(int userId) async {
+  final url =
+      'https:
 
-Future<List<String>> fetchWaitingRoomUsers(int waitingRoomId) async {
+  final headers = {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer $bearerToken',
+  };
+
+  try {
+    final response = await http.post(
+      Uri.parse(url),
+      headers: headers,
+      body: jsonEncode({ 'user_id': userId }),
+    );
+
+    
+    if (response.statusCode == 200) {
+      print('League room created successfully: ${response.body}');
+      return true;
+    } else {
+      print('Error starting league room: ${response.body}');
+      return false;
+    }
+  } catch (e) {
+    print('Exception in startLeagueRoom: $e');
+    return false;
+  }
+}
+
+Future<List<WaitingRoomUser>> fetchWaitingRoomUsers(int waitingRoomId) async {
   final url =
       'https:
   final headers = {
@@ -168,19 +199,42 @@ Future<List<String>> fetchWaitingRoomUsers(int waitingRoomId) async {
     );
 
     if (response.statusCode == 200) {
-      
-      
-      
-      
-      
+      /*
+        Example response:
+        [
+          {
+            "user_id": 1,
+            "date_joined": "2025-01-11T10:00:00Z",
+            "users": {
+              "name": "Alice"
+            }
+          },
+          {
+            "user_id": 2,
+            "date_joined": "2025-01-11T11:00:00Z",
+            "users": {
+              "name": "Bob"
+            }
+          }
+        ]
+      */
       final List<dynamic> data = jsonDecode(response.body);
 
       
-      final List<String> userNames = data
-          .map((item) => item['name'] as String)
-          .toList();
+      final List<WaitingRoomUser> users = data.map((item) {
+        final userId = item['user_id'] as int;
+        final dateJoinedString = item['created_at'] as String;
+        final dateJoined = DateTime.parse(dateJoinedString);
+        final userName = item['users']?['name'] as String? ?? 'Unknown';
 
-      return userNames;
+        return WaitingRoomUser(
+          userId: userId,
+          name: userName,
+          dateJoined: dateJoined,
+        );
+      }).toList();
+
+      return users;
     } else {
       print('Error fetching waiting room users: ${response.body}');
       return [];
@@ -204,7 +258,8 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
 
   int? _waitingRoomId;
   int? _leagueRoomId;
-  List<String> _waitingRoomUsers = [];
+  List<WaitingRoomUser> _waitingRoomUsers = [];
+
 
   
   final TextEditingController _waitingRoomIdController = TextEditingController();
@@ -215,50 +270,43 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
     _initializeLogic();
   }
 
+  @override
   Future<void> _initializeLogic() async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     
     int? fetchedWaitingRoomId = await getWaitingRoomId(widget.userId);
 
     if (fetchedWaitingRoomId != null) {
-      
       _waitingRoomId = fetchedWaitingRoomId;
 
       
       _waitingRoomUsers = await fetchWaitingRoomUsers(fetchedWaitingRoomId);
+
     } else {
       
       int? fetchedLeagueRoomId = await getLeagueRoomId(widget.userId);
       if (fetchedLeagueRoomId != null) {
-        
         _leagueRoomId = fetchedLeagueRoomId;
       } else {
-        
         _leagueRoomId = null;
       }
     }
 
-    setState(() {
-      _isLoading = false;
-    });
+    setState(() => _isLoading = false);
   }
 
-  
+
   Future<void> _handleCreateWaitingRoom() async {
     setState(() => _isLoading = true);
-    int? newWaitingRoomId = await createWaitingRoom(widget.userId);
+    final newWaitingRoomId = await createWaitingRoom(widget.userId);
     if (newWaitingRoomId != null) {
       _waitingRoomId = newWaitingRoomId;
-      
-      _waitingRoomUsers = await fetchWaitingRoomUsers(_waitingRoomId!);
+      _waitingRoomUsers = await fetchWaitingRoomUsers(newWaitingRoomId);
     }
     setState(() => _isLoading = false);
   }
 
-  
   Future<void> _handleJoinWaitingRoom() async {
     final inputText = _waitingRoomIdController.text.trim();
     if (inputText.isEmpty) {
@@ -268,8 +316,7 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
       return;
     }
 
-    
-    int? waitingRoomIdToJoin = int.tryParse(inputText);
+    final waitingRoomIdToJoin = int.tryParse(inputText);
     if (waitingRoomIdToJoin == null) {
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Invalid waiting_room_id format."))
@@ -278,11 +325,10 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
     }
 
     setState(() => _isLoading = true);
-    bool success = await joinWaitingRoom(widget.userId, waitingRoomIdToJoin);
+    final success = await joinWaitingRoom(widget.userId, waitingRoomIdToJoin);
     if (success) {
-      
       _waitingRoomId = waitingRoomIdToJoin;
-      _waitingRoomUsers = await fetchWaitingRoomUsers(_waitingRoomId!);
+      _waitingRoomUsers = await fetchWaitingRoomUsers(waitingRoomIdToJoin);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Failed to join waiting room."))
@@ -290,6 +336,7 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
     }
     setState(() => _isLoading = false);
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -322,8 +369,50 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
     
     return _buildCreateJoinOptions();
   }
+  Future<void> _handleStartLeague() async {
+    setState(() => _isLoading = true);
+
+    final success = await create_league_room(widget.userId);
+    if (success) {
+      
+      
+      
+
+      _waitingRoomId = null;
+      
+      final newLeagueRoomId = await getLeagueRoomId(widget.userId);
+      if (newLeagueRoomId != null) {
+        _leagueRoomId = newLeagueRoomId;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("League Room started!"))
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Failed to start league room."))
+      );
+    }
+
+    setState(() => _isLoading = false);
+  }
+
 
   Widget _buildWaitingRoomView() {
+    
+    if (_waitingRoomUsers.isEmpty) {
+      return Center(
+        child: Text("Waiting room ID: $_waitingRoomId\nNo users found."),
+      );
+    }
+
+    
+    _waitingRoomUsers.sort((a, b) => a.dateJoined.compareTo(b.dateJoined));
+    final oldestUser = _waitingRoomUsers.first;
+    
+
+    bool isCurrentUserOldest = (oldestUser.userId == widget.userId);
+
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -333,20 +422,33 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
             style: const TextStyle(fontSize: 18),
           ),
           const SizedBox(height: 16),
+
+          
           Expanded(
             child: ListView.builder(
               itemCount: _waitingRoomUsers.length,
               itemBuilder: (context, index) {
+                final user = _waitingRoomUsers[index];
+                final joinedStr = user.dateJoined.toString();
                 return ListTile(
-                  title: Text(_waitingRoomUsers[index]),
+                  title: Text(user.name),
+                  subtitle: Text('User ID: ${user.userId} | Joined: $joinedStr'),
                 );
               },
             ),
           ),
+
+          
+          if (isCurrentUserOldest)
+            ElevatedButton(
+              onPressed: _handleStartLeague,
+              child: const Text("Start"),
+            ),
         ],
       ),
     );
   }
+
 
   Widget _buildCreateJoinOptions() {
     return Padding(
