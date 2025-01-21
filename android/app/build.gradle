@@ -19,8 +19,10 @@ if (flutterVersionName == null) {
 
 android {
     namespace = "com.example.year4_project"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 35
     ndkVersion = flutter.ndkVersion
+
+
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -32,8 +34,8 @@ android {
         applicationId = "com.example.year4_project"
         
         
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        minSdk = 26
+        targetSdk = 35
         versionCode = flutterVersionCode.toInteger()
         versionName = flutterVersionName
     }
@@ -49,4 +51,9 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    
+    implementation "androidx.health.connect:connect-client:1.1.0-alpha11"
 }

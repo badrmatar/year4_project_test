@@ -39,7 +39,7 @@ dependencies:
   flutter_dotenv: ^5.2.1
   provider: ^6.1.2
   json_annotation: ^4.8.1
-
+  intl: ^0.18.0
 
 
   # Core location tracking

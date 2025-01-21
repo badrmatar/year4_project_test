@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
+import '../services/run_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -48,6 +49,7 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            
             ElevatedButton(
               onPressed: () {
                 Navigator.pushNamed(context, '/waiting_room');
@@ -61,10 +63,40 @@ class _HomePageState extends State<HomePage> {
               },
               child: const Text('View Challenges'),
             ),
+
+            const SizedBox(height: 32),
+            
+            ElevatedButton(
+              onPressed: () async {
+                
+                
+                final user = Provider.of<UserModel>(context, listen: false);
+                final userId = user.id;
+
+                
+                final startContributionId = await startNewRunInDatabase(userId);
+
+                if (startContributionId != null) {
+                  
+                  Navigator.pushNamed(
+                    context,
+                    '/active_run',
+                    arguments: startContributionId,
+                  );
+                } else {
+                  
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Failed to start run.'))
+                  );
+                }
+              },
+              child: const Text('Start Run'),
+            ),
           ],
         ),
       ),
     );
   }
+
 
 }
