@@ -5,6 +5,7 @@
     <!-- Location Permissions -->
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>This app needs access to your location to track your run.</string>
+
     <!-- If you require background location tracking, uncomment the key below -->
     <key>NSLocationAlwaysUsageDescription</key>
     <string>This app uses your location to track your run even when the app is in the background.</string>
@@ -12,6 +13,9 @@
     <!-- Google Maps API Key -->
     <key>GMSApiKey</key>
     <string>AIzaSyBffijFTKZIwz_Psp8FpXeXhyWj23G7VWo</string>
+
+    <key>io.flutter.embedded_views_preview</key>
+    <true/>
 
     <key>CFBundleDevelopmentRegion</key>
     <string>$(DEVELOPMENT_LANGUAGE)</string>

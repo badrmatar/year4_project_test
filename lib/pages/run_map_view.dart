@@ -1,5 +1,4 @@
 
-
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
@@ -11,12 +10,36 @@ class RunMapView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     
-    final List<LatLng> points = routeData.map<LatLng>((point) {
-      return LatLng(
-        (point['latitude'] as num).toDouble(),
-        (point['longitude'] as num).toDouble(),
+    if (routeData.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Run Route')),
+        body: const Center(
+          child: Text('No route data available for this run'),
+        ),
       );
+    }
+
+    
+    final List<LatLng> points = routeData.map<LatLng>((point) {
+      try {
+        final latitude = (point['latitude'] as num?)?.toDouble() ?? 0.0;
+        final longitude = (point['longitude'] as num?)?.toDouble() ?? 0.0;
+        return LatLng(latitude, longitude);
+      } catch (e) {
+        
+        return const LatLng(0, 0);
+      }
     }).toList();
+
+    
+    if (points.isEmpty || (points.length == 1 && points[0].latitude == 0 && points[0].longitude == 0)) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Run Route')),
+        body: const Center(
+          child: Text('Invalid route data for this run'),
+        ),
+      );
+    }
 
     final polyline = Polyline(
       polylineId: const PolylineId('run_route'),
@@ -29,10 +52,12 @@ class RunMapView extends StatelessWidget {
       appBar: AppBar(title: const Text('Run Route')),
       body: GoogleMap(
         initialCameraPosition: CameraPosition(
-          target: points.isNotEmpty ? points.first : const LatLng(0, 0),
+          target: points.first,
           zoom: 15,
         ),
         polylines: {polyline},
+        myLocationEnabled: true,
+        myLocationButtonEnabled: true,
       ),
     );
   }
