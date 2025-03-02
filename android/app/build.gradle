@@ -29,7 +29,7 @@ android {
 
     defaultConfig {
         
-        applicationId = "com.example.year4_project"
+        applicationId = "com.badrm.duorun"
         
         
         minSdk = flutter.minSdkVersion

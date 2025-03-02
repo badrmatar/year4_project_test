@@ -2,7 +2,7 @@
 <manifest
     xmlns:android="http:
     xmlns:tools="http:
-    package="com.example.year4_project">
+    package="com.badrm.duorun">
 
     <!-- Existing location permissions -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
