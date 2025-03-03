@@ -38,8 +38,6 @@ mixin RunTrackingMixin<T extends StatefulWidget> on State<T> {
 
   
   void startRun(Position initialPosition) {
-    print('Starting run with initial position: ${initialPosition.latitude}, ${initialPosition.longitude}');
-
     setState(() {
       startLocation = initialPosition;
       isTracking = true;
@@ -56,77 +54,48 @@ mixin RunTrackingMixin<T extends StatefulWidget> on State<T> {
 
     
     runTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (mounted) {
-        setState(() {
-          if (!autoPaused) {
-            secondsElapsed++;
-          }
-          
-          print('Timer tick: $secondsElapsed seconds');
-        });
+      if (!autoPaused && mounted) {
+        setState(() => secondsElapsed++);
       }
     });
 
     
-    locationSubscription = locationService.trackLocation().listen(
-          (position) {
-        if (!isTracking || !mounted) return;
+    locationSubscription = locationService.trackLocation().listen((position) {
+      if (!isTracking) return;
 
-        print('New position: ${position.latitude}, ${position.longitude}, accuracy: ${position.accuracy}m, speed: ${position.speed}m/s');
+      
+      final speed = position.speed.clamp(0.0, double.infinity);
+      _handleAutoPauseLogic(speed);
 
-        
-        if (position.accuracy > 20) {
-          print('Skipping low accuracy position update');
-          return;
-        }
-
-        
-        final speed = position.speed.clamp(0.0, double.infinity);
-        _handleAutoPauseLogic(speed);
-
-        
-        if (lastRecordedLocation != null && !autoPaused) {
-          final newDistance = calculateDistance(
-            lastRecordedLocation!.latitude,
-            lastRecordedLocation!.longitude,
-            position.latitude,
-            position.longitude,
-          );
-
-          
-          if (newDistance > 1.0 && newDistance < 50.0) {
-            setState(() {
-              distanceCovered += newDistance;
-              print('Distance updated: $distanceCovered meters');
-              lastRecordedLocation = LatLng(position.latitude, position.longitude);
-            });
-          }
-        } else if (lastRecordedLocation == null) {
-          lastRecordedLocation = LatLng(position.latitude, position.longitude);
-        }
-
-        
-        setState(() {
-          currentLocation = position;
-          final newPoint = LatLng(position.latitude, position.longitude);
-          routePoints.add(newPoint);
-          routePolyline = routePolyline.copyWith(pointsParam: routePoints);
-        });
-
-        
-        mapController?.animateCamera(
-          CameraUpdate.newCameraPosition(
-            CameraPosition(
-              target: LatLng(position.latitude, position.longitude),
-              zoom: 16,
-            ),
-          ),
+      
+      if (lastRecordedLocation != null && !autoPaused) {
+        final newDistance = calculateDistance(
+          lastRecordedLocation!.latitude,
+          lastRecordedLocation!.longitude,
+          position.latitude,
+          position.longitude,
         );
-      },
-      onError: (error) {
-        print('Location stream error: $error');
-      },
-    );
+        if (newDistance > 20.0) {
+          setState(() {
+            distanceCovered += newDistance;
+            lastRecordedLocation = LatLng(position.latitude, position.longitude);
+          });
+        }
+      }
+
+      
+      setState(() {
+        currentLocation = position;
+        final newPoint = LatLng(position.latitude, position.longitude);
+        routePoints.add(newPoint);
+        routePolyline = routePolyline.copyWith(pointsParam: routePoints);
+      });
+
+      
+      mapController?.animateCamera(
+        CameraUpdate.newLatLng(LatLng(position.latitude, position.longitude)),
+      );
+    });
   }
 
   
@@ -144,7 +113,7 @@ mixin RunTrackingMixin<T extends StatefulWidget> on State<T> {
     final dLng = (endLng - startLng) * (pi / 180);
     final a = sin(dLat / 2) * sin(dLat / 2) +
         cos(startLat * (pi / 180)) * cos(endLat * (pi / 180)) *
-        sin(dLng / 2) * sin(dLng / 2);
+            sin(dLng / 2) * sin(dLng / 2);
     final c = 2 * atan2(sqrt(a), sqrt(1 - a));
     return earthRadius * c;
   }

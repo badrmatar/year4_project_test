@@ -8,6 +8,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
+import 'dart:async'; 
+import 'dart:convert'; 
 
 import '../models/user.dart';
 import '../mixins/run_tracking_mixin.dart';
@@ -128,7 +130,7 @@ class ActiveRunPageState extends State<ActiveRunPage> with RunTrackingMixin {
   String _formatTime(int seconds) {
     final minutes = seconds ~/ 60;
     final remainingSeconds = seconds % 60;
-    return '$minutes:${remainingSeconds.toString().padLeft(2, "0")}';
+    return '$minutes:${remainingSeconds.toString().padLeft(2, '0')}';
   }
 
   @override
@@ -142,30 +144,13 @@ class ActiveRunPageState extends State<ActiveRunPage> with RunTrackingMixin {
             initialCameraPosition: CameraPosition(
               target: currentLocation != null
                   ? LatLng(currentLocation!.latitude, currentLocation!.longitude)
-                  : const LatLng(0, 0),
-              
-              zoom: 16,
+                  : const LatLng(37.4219999, -122.0840575),
+              zoom: 15,
             ),
             myLocationEnabled: true,
             myLocationButtonEnabled: true,
-            zoomControlsEnabled: true,
-            compassEnabled: true,
-            mapToolbarEnabled: false,
             polylines: {routePolyline},
-            onMapCreated: (controller) {
-              mapController = controller;
-              
-              if (currentLocation != null) {
-                controller.animateCamera(
-                  CameraUpdate.newCameraPosition(
-                    CameraPosition(
-                      target: LatLng(currentLocation!.latitude, currentLocation!.longitude),
-                      zoom: 16,
-                    ),
-                  ),
-                );
-              }
-            },
+            onMapCreated: (controller) => mapController = controller,
           ),
           
           Positioned(
@@ -192,61 +177,6 @@ class ActiveRunPageState extends State<ActiveRunPage> with RunTrackingMixin {
                 ),
               ),
             ),
-          
-          if (currentLocation == null)
-            Positioned(
-              top: 100,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.8),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text(
-                    'Waiting for GPS signal...',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
-            ),
-          
-          Positioned(
-            bottom: 100,
-            left: 20,
-            right: 20,
-            child: Card(
-              color: Colors.black.withOpacity(0.7),
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'GPS Status: ${currentLocation != null ? "Active" : "Searching..."}',
-                      style: const TextStyle(color: Colors.white, fontSize: 12),
-                    ),
-                    if (currentLocation != null)
-                      Text(
-                        'Accuracy: ${currentLocation!.accuracy.toStringAsFixed(1)}m',
-                        style: const TextStyle(color: Colors.white, fontSize: 12),
-                      ),
-                    if (currentLocation != null)
-                      Text(
-                        'Speed: ${(currentLocation!.speed * 3.6).toStringAsFixed(1)} km/h',
-                        style: const TextStyle(color: Colors.white, fontSize: 12),
-                      ),
-                    Text(
-                      'Points: ${routePoints.length}',
-                      style: const TextStyle(color: Colors.white, fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
         ],
       ),
       
