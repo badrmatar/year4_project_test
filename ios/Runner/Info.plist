@@ -13,6 +13,11 @@
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
     <string>This app requires constant access to your location to track your running route, even when the app is in the background.</string>
 
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>location</string>
+    </array>
+
     <!-- Google Maps API Key -->
     <key>GMSApiKey</key>
     <string>AIzaSyBffijFTKZIwz_Psp8FpXeXhyWj23G7VWo</string>

@@ -1,4 +1,5 @@
 
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 
 class LocationService {
@@ -40,7 +41,10 @@ class LocationService {
       
       return await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.best,
-        timeLimit: const Duration(seconds: 10),
+        
+        timeLimit: defaultTargetPlatform == TargetPlatform.iOS
+            ? const Duration(seconds: 15)
+            : const Duration(seconds: 10),
       );
     } catch (e) {
       print('Error getting location: $e');
@@ -48,12 +52,16 @@ class LocationService {
     }
   }
 
-
   
   Stream<Position> trackLocation() {
-    const locationSettings = LocationSettings(
+    
+    final locationSettings = LocationSettings(
       accuracy: LocationAccuracy.high,
       distanceFilter: 15,
+      
+      timeLimit: defaultTargetPlatform == TargetPlatform.iOS
+          ? const Duration(seconds: 10)
+          : null,
     );
     return Geolocator.getPositionStream(locationSettings: locationSettings);
   }
