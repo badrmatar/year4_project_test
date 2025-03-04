@@ -96,7 +96,7 @@ import CoreLocation
     }
 
     
-    if locationManager?.locationServicesEnabled == true {
+    if CLLocationManager.locationServicesEnabled() {
       completionHandler(.newData)
     } else {
       completionHandler(.noData)
