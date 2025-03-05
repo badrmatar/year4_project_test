@@ -42,6 +42,9 @@ class IOSLocationBridge {
       switch (call.method) {
         case 'locationUpdate':
           final args = call.arguments as Map<dynamic, dynamic>;
+          
+          print('iOS location update: ${args.toString()}');
+
           final position = Position(
             latitude: args['latitude'],
             longitude: args['longitude'],
@@ -49,13 +52,20 @@ class IOSLocationBridge {
             accuracy: args['accuracy'],
             altitude: args['altitude'],
             heading: 0.0,
-            speed: args['speed'],
-            speedAccuracy: args['speedAccuracy'],
+            speed: args['speed'] ?? 0.0,  
+            speedAccuracy: args['speedAccuracy'] ?? 0.0,  
             floor: null,
             altitudeAccuracy: 0.0,
             headingAccuracy: 0.0,
           );
-          _locationController.add(position);
+
+          
+          if (position.latitude != 0 && position.longitude != 0) {
+            _locationController.add(position);
+            print('iOS location forwarded: ${position.latitude}, ${position.longitude}, accuracy: ${position.accuracy}m');
+          } else {
+            print('Skipping invalid iOS location update with zero coordinates');
+          }
           break;
         case 'locationError':
           final args = call.arguments as Map<dynamic, dynamic>;

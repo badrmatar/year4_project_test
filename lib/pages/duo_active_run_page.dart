@@ -604,7 +604,20 @@ class _DuoActiveRunPageState extends State<DuoActiveRunPage>
             myLocationButtonEnabled: true,
             polylines: {routePolyline},
             markers: Set<Marker>.of(_markers.values),
-            onMapCreated: (controller) => mapController = controller,
+            onMapCreated: (controller) {
+              setState(() {
+                mapController = controller;
+              });
+              if (currentLocation != null) {
+                controller.animateCamera(
+                  CameraUpdate.newLatLngZoom(
+                    LatLng(
+                        currentLocation!.latitude, currentLocation!.longitude),
+                    15,
+                  ),
+                );
+              }
+            },
           ),
           Positioned(
             top: 20,
