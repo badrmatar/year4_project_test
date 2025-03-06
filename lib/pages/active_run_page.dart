@@ -1,15 +1,16 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
-import 'package:http/http.dart' as http;
 
 import '../models/user.dart';
-import '../services/location_service.dart';
+import '../mixins/run_tracking_mixin.dart';
+import '../services/ios_location_bridge.dart';
 
 class ActiveRunPage extends StatefulWidget {
   final Position initialPosition;
@@ -27,211 +28,53 @@ class ActiveRunPage extends StatefulWidget {
   ActiveRunPageState createState() => ActiveRunPageState();
 }
 
-class ActiveRunPageState extends State<ActiveRunPage> {
-  
-  final LocationService _locationService = LocationService();
-
-  
-  GoogleMapController? _mapController;
-
-  
-  bool _isTracking = false;
-  bool _autoPaused = false;
-  bool _manuallyPaused = false;
-  int _secondsElapsed = 0;
-  double _distanceCovered = 0.0;
-  double _currentSpeed = 0.0;
-  double _averagePace = 0.0;  
-  int _caloriesBurned = 0;
-
-  
-  List<LatLng> _routePoints = [];
-  Set<Polyline> _polylines = {};
-
-  
-  Timer? _runTimer;
-
-  
-  int _stillCount = 0;
-  static const _pauseThreshold = 0.5;  
-  static const _resumeThreshold = 1.0;  
-
-  
-  StreamSubscription<Position>? _locationSubscription;
-
-  
+class ActiveRunPageState extends State<ActiveRunPage> with RunTrackingMixin {
+  bool _isLoading = true;
+  StreamSubscription? _iosLocationSubscription;
+  final IOSLocationBridge _iosBridge = IOSLocationBridge();
   Map<String, dynamic>? _runSummary;
 
   @override
   void initState() {
     super.initState();
+
+    
+    if (Platform.isIOS) {
+      _initializeIOSLocationBridge();
+    }
+
     _initializeRun();
   }
 
+  Future<void> _initializeIOSLocationBridge() async {
+    await _iosBridge.initialize();
+    await _iosBridge.startBackgroundLocationUpdates();
+
+    _iosLocationSubscription = _iosBridge.locationStream.listen((position) {
+      if (!mounted || !isTracking) return;
+
+      print('iOS background location update: ${position.latitude}, ${position.longitude}');
+
+      
+      if (currentLocation == null || position.accuracy < currentLocation!.accuracy) {
+        setState(() {
+          currentLocation = position;
+        });
+      }
+    });
+  }
+
   Future<void> _initializeRun() async {
-    
-    _locationService.setTrackingMode(TrackingMode.high_accuracy);
-
-    
-    _addRoutePoint(LatLng(
-        widget.initialPosition.latitude,
-        widget.initialPosition.longitude
-    ));
-
-    
-    _locationService.initializeKalmanFilter(widget.initialPosition);
-
-    
-    _runTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!_autoPaused && !_manuallyPaused && mounted) {
-        setState(() {
-          _secondsElapsed++;
-          
-          if (_secondsElapsed % 10 == 0) {
-            _updateCaloriesBurned();
-          }
-        });
-      }
-    });
-
-    
-    _locationSubscription = _locationService.trackLocation().listen(_handleNewLocation);
-
     setState(() {
-      _isTracking = true;
+      _isLoading = false;
     });
-  }
-
-  void _handleNewLocation(Position position) {
-    if (!_isTracking || _manuallyPaused) return;
 
     
-    final currentPoint = LatLng(position.latitude, position.longitude);
-
-    
-    if (_routePoints.isNotEmpty) {
-      final previousPoint = _routePoints.last;
-
-      
-      final segmentDistance = _calculateDistance(
-          previousPoint.latitude, previousPoint.longitude,
-          currentPoint.latitude, currentPoint.longitude
-      );
-
-      
-      final speed = position.speed >= 0 ? position.speed : 0.0;
-
-      
-      _handleAutoPauseLogic(speed);
-
-      
-      if (!_autoPaused && segmentDistance > 0 && segmentDistance < 100) {
-        setState(() {
-          _distanceCovered += segmentDistance;
-          _currentSpeed = speed;
-
-          
-          if (_distanceCovered > 0) {
-            
-            final paceSeconds = _secondsElapsed / (_distanceCovered / 1000);
-            _averagePace = paceSeconds / 60;
-          }
-        });
-      }
-    }
-
-    
-    _addRoutePoint(currentPoint);
-
-    
-    _animateToUser(position);
+    startRun(widget.initialPosition);
   }
 
-  void _addRoutePoint(LatLng point) {
-    setState(() {
-      _routePoints.add(point);
-
-      _polylines = {
-        Polyline(
-          polylineId: const PolylineId('route'),
-          color: Colors.blue,
-          width: 5,
-          points: _routePoints,
-        ),
-      };
-    });
-  }
-
-  void _animateToUser(Position position) {
-    _mapController?.animateCamera(
-        CameraUpdate.newLatLng(LatLng(position.latitude, position.longitude))
-    );
-  }
-
-  void _handleAutoPauseLogic(double speed) {
-    if (_manuallyPaused) return;
-
-    if (_autoPaused) {
-      
-      if (speed > _resumeThreshold) {
-        setState(() {
-          _autoPaused = false;
-          _stillCount = 0;
-        });
-      }
-    } else {
-      
-      if (speed < _pauseThreshold) {
-        _stillCount++;
-        if (_stillCount >= 5) {  
-          setState(() {
-            _autoPaused = true;
-          });
-        }
-      } else {
-        _stillCount = 0;
-      }
-    }
-  }
-
-  double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
-    const double earthRadius = 6371000.0; 
-    final double dLat = _degreesToRadians(lat2 - lat1);
-    final double dLon = _degreesToRadians(lon2 - lon1);
-
-    final double a =
-        sin(dLat / 2) * sin(dLat / 2) +
-            cos(_degreesToRadians(lat1)) * cos(_degreesToRadians(lat2)) *
-                sin(dLon / 2) * sin(dLon / 2);
-
-    final double c = 2 * atan2(sqrt(a), sqrt(1 - a));
-    return earthRadius * c;
-  }
-
-  double _degreesToRadians(double degrees) {
-    return degrees * (pi / 180.0);
-  }
-
-  void _updateCaloriesBurned() {
-    
-    
-    
-    final distanceKm = _distanceCovered / 1000;
-    final calories = (distanceKm * 60).round();
-
-    setState(() {
-      _caloriesBurned = calories;
-    });
-  }
-
-  void _togglePause() {
-    setState(() {
-      _manuallyPaused = !_manuallyPaused;
-    });
-  }
-  
   Future<void> _endRunAndSave() async {
-    if (_routePoints.isEmpty) {
+    if (routePoints.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Cannot end run without any location data')),
       );
@@ -239,12 +82,13 @@ class ActiveRunPageState extends State<ActiveRunPage> {
     }
 
     
-    _locationSubscription?.cancel();
-    _runTimer?.cancel();
+    endRun();
 
-    setState(() {
-      _isTracking = false;
-    });
+    
+    if (Platform.isIOS) {
+      _iosLocationSubscription?.cancel();
+      await _iosBridge.stopBackgroundLocationUpdates();
+    }
 
     
     showDialog(
@@ -274,7 +118,12 @@ class ActiveRunPageState extends State<ActiveRunPage> {
       if (mounted) Navigator.of(context).pop();
 
       
-      Navigator.of(context).pushReplacementNamed('/challenges');
+      if (_runSummary != null) {
+        _showRunSummary();
+      } else {
+        
+        Navigator.of(context).pushReplacementNamed('/challenges');
+      }
     } catch (e) {
       
       if (mounted) Navigator.of(context).pop();
@@ -291,18 +140,21 @@ class ActiveRunPageState extends State<ActiveRunPage> {
   Future<void> _saveRunData() async {
     final user = Provider.of<UserModel>(context, listen: false);
 
-    if (user.id == 0 || _routePoints.isEmpty) {
+    if (user.id == 0 || routePoints.isEmpty) {
       throw Exception("Missing required data to save run");
     }
 
-    final startPoint = _routePoints.first;
-    final endPoint = _routePoints.last;
-    final distance = double.parse(_distanceCovered.toStringAsFixed(2));
-    final startTime = widget.initialPosition.timestamp?.toUtc().toIso8601String()
-        ?? DateTime.now().subtract(Duration(seconds: _secondsElapsed)).toUtc().toIso8601String();
+    final startPoint = routePoints.first;
+    final endPoint = routePoints.last;
+
+    print('Saving run with distance: ${distanceCovered.toStringAsFixed(2)}m');
+
+    final distance = double.parse(distanceCovered.toStringAsFixed(2));
+    final startTime = startLocation?.timestamp?.toUtc().toIso8601String()
+        ?? DateTime.now().subtract(Duration(seconds: secondsElapsed)).toUtc().toIso8601String();
     final endTime = DateTime.now().toUtc().toIso8601String();
 
-    final routeJson = _routePoints
+    final routeJson = routePoints
         .map((point) => {'latitude': point.latitude, 'longitude': point.longitude})
         .toList();
 
@@ -335,9 +187,8 @@ class ActiveRunPageState extends State<ActiveRunPage> {
         setState(() {
           _runSummary = {
             'distanceKm': distance / 1000,
-            'durationSeconds': _secondsElapsed,
-            'averagePaceMinPerKm': _averagePace,
-            'caloriesBurned': _caloriesBurned,
+            'durationSeconds': secondsElapsed,
+            'caloriesBurned': _calculateCalories(distance / 1000),
             'completed': data['data']['challenge_completed'] ?? false,
             'teamProgress': data['data']['total_distance_km'] ?? 0,
             'requiredDistance': data['data']['required_distance_km'] ?? 0,
@@ -351,11 +202,16 @@ class ActiveRunPageState extends State<ActiveRunPage> {
     }
   }
 
+  int _calculateCalories(double distanceKm) {
+    
+    return (distanceKm * 60).round();
+  }
+
   void _showRunSummary() {
     if (_runSummary == null) return;
 
     
-    final duration = Duration(seconds: _secondsElapsed);
+    final duration = Duration(seconds: secondsElapsed);
     final hours = duration.inHours;
     final minutes = duration.inMinutes % 60;
     final seconds = duration.inSeconds % 60;
@@ -364,8 +220,12 @@ class ActiveRunPageState extends State<ActiveRunPage> {
         : '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
 
     
-    final paceMinutes = _averagePace.floor();
-    final paceSeconds = ((_averagePace - paceMinutes) * 60).round();
+    double paceValue = 0;
+    if (_runSummary!['distanceKm'] > 0) {
+      paceValue = secondsElapsed / 60 / _runSummary!['distanceKm'];
+    }
+    final paceMinutes = paceValue.floor();
+    final paceSeconds = ((paceValue - paceMinutes) * 60).round();
     final paceText = '$paceMinutes:${paceSeconds.toString().padLeft(2, '0')} min/km';
 
     
@@ -432,7 +292,7 @@ class ActiveRunPageState extends State<ActiveRunPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       
-                      if (_mapController != null)
+                      if (mapController != null)
                         Container(
                           height: 200,
                           margin: const EdgeInsets.only(bottom: 20),
@@ -440,15 +300,12 @@ class ActiveRunPageState extends State<ActiveRunPage> {
                             borderRadius: BorderRadius.circular(12),
                             child: GoogleMap(
                               initialCameraPosition: CameraPosition(
-                                target: _routePoints.isNotEmpty
-                                    ? _routePoints[_routePoints.length ~/ 2]
-                                    : LatLng(
-                                    widget.initialPosition.latitude,
-                                    widget.initialPosition.longitude
-                                ),
+                                target: routePoints.isNotEmpty
+                                    ? routePoints[routePoints.length ~/ 2]
+                                    : LatLng(widget.initialPosition.latitude, widget.initialPosition.longitude),
                                 zoom: 15,
                               ),
-                              polylines: _polylines,
+                              polylines: {routePolyline},
                               zoomControlsEnabled: false,
                               myLocationEnabled: false,
                               myLocationButtonEnabled: false,
@@ -469,7 +326,7 @@ class ActiveRunPageState extends State<ActiveRunPage> {
                           _buildStatCard('Distance', distanceText, Icons.straighten),
                           _buildStatCard('Duration', durationText, Icons.timer),
                           _buildStatCard('Avg. Pace', paceText, Icons.speed),
-                          _buildStatCard('Calories', '${_caloriesBurned} kcal', Icons.local_fire_department),
+                          _buildStatCard('Calories', '${_runSummary!['caloriesBurned']} kcal', Icons.local_fire_department),
                         ],
                       ),
 
@@ -573,15 +430,25 @@ class ActiveRunPageState extends State<ActiveRunPage> {
 
   @override
   void dispose() {
-    _locationSubscription?.cancel();
-    _runTimer?.cancel();
-    _mapController?.dispose();
+    if (Platform.isIOS) {
+      _iosLocationSubscription?.cancel();
+      _iosBridge.dispose();
+    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final distanceKm = _distanceCovered / 1000;
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: Colors.black87,
+        body: const Center(
+          child: CircularProgressIndicator(color: Colors.white),
+        ),
+      );
+    }
+
+    final distanceKm = distanceCovered / 1000;
 
     return Scaffold(
       body: Stack(
@@ -598,8 +465,12 @@ class ActiveRunPageState extends State<ActiveRunPage> {
             myLocationEnabled: true,
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
-            polylines: _polylines,
-            onMapCreated: (controller) => _mapController = controller,
+            polylines: {routePolyline},
+            onMapCreated: (controller) {
+              setState(() {
+                mapController = controller;
+              });
+            },
           ),
 
           
@@ -662,10 +533,14 @@ class ActiveRunPageState extends State<ActiveRunPage> {
                   ),
                   IconButton(
                     icon: Icon(
-                      _manuallyPaused ? Icons.play_arrow : Icons.pause,
+                      autoPaused ? Icons.play_arrow : Icons.pause,
                       color: Colors.white,
                     ),
-                    onPressed: _togglePause,
+                    onPressed: () {
+                      setState(() {
+                        autoPaused = !autoPaused;
+                      });
+                    },
                   ),
                 ],
               ),
@@ -697,17 +572,17 @@ class ActiveRunPageState extends State<ActiveRunPage> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   
-                  if (_autoPaused || _manuallyPaused)
+                  if (autoPaused)
                     Container(
                       margin: const EdgeInsets.only(bottom: 8),
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                       decoration: BoxDecoration(
-                        color: _manuallyPaused ? Colors.orange : Colors.red,
+                        color: Colors.orange,
                         borderRadius: BorderRadius.circular(16),
                       ),
-                      child: Text(
-                        _manuallyPaused ? 'PAUSED' : 'AUTO-PAUSED',
-                        style: const TextStyle(
+                      child: const Text(
+                        'PAUSED',
+                        style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                         ),
@@ -719,10 +594,13 @@ class ActiveRunPageState extends State<ActiveRunPage> {
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
                       _buildStatItem('DISTANCE', '${distanceKm.toStringAsFixed(2)} km'),
-                      _buildStatItem('TIME', _formatTime(_secondsElapsed)),
-                      _buildStatItem('PACE', _averagePace > 0
-                          ? '${_averagePace.floor()}:${((_averagePace - _averagePace.floor()) * 60).round().toString().padLeft(2, '0')}'
-                          : '--:--'),
+                      _buildStatItem('TIME', _formatTime(secondsElapsed)),
+                      _buildStatItem(
+                          'PACE',
+                          secondsElapsed > 0 && distanceKm > 0
+                              ? '${(secondsElapsed / 60 / distanceKm).floor()}:${(((secondsElapsed / 60 / distanceKm) % 1) * 60).round().toString().padLeft(2, '0')}'
+                              : '--:--'
+                      ),
                     ],
                   ),
 
