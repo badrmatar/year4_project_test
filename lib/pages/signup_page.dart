@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/analytics_service.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({Key? key}) : super(key: key);
@@ -26,18 +27,16 @@ class _SignUpPageState extends State<SignUpPage> {
         return;
       }
 
-      setState(() {
-        _isLoading = true;
-      });
-
-      bool success =
-      await _authService.registerUser(context, _username, _email, _password);
-
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = true);
+      bool success = await _authService.registerUser(context, _username, _email, _password);
+      setState(() => _isLoading = false);
 
       if (success && mounted) {
+        
+        await AnalyticsService().client.trackEvent('user_signed_up', {
+          'username': _username,
+          'email': _email,
+        });
         Navigator.pushReplacementNamed(context, '/login');
       } else {
         if (mounted) {
@@ -112,11 +111,8 @@ class _SignUpPageState extends State<SignUpPage> {
                 ),
                 keyboardType: TextInputType.emailAddress,
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
+                  if (value == null || value.isEmpty || !value.contains('@')) {
                     return 'Please enter a valid email';
-                  }
-                  if (!value.contains('@')) {
-                    return 'Please enter a valid email address';
                   }
                   return null;
                 },
@@ -178,7 +174,6 @@ class _SignUpPageState extends State<SignUpPage> {
                 },
               ),
               const SizedBox(height: 32.0),
-              
               ElevatedButton(
                 onPressed: _handleSignUp,
                 child: const Text('Sign Up'),
@@ -187,7 +182,6 @@ class _SignUpPageState extends State<SignUpPage> {
                 ),
               ),
               const SizedBox(height: 16.0),
-              
               TextButton(
                 onPressed: () {
                   Navigator.pushReplacementNamed(context, '/login');
