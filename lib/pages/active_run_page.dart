@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 
 import '../models/user.dart';
 import '../services/location_service.dart';
+import '../services/analytics_service.dart'; 
 
 class ActiveRunPage extends StatefulWidget {
   final Position initialPosition;
@@ -65,6 +66,7 @@ class ActiveRunPageState extends State<ActiveRunPage> {
   
   LatLng? _lastRecordedLocation;
   final Map<MarkerId, Marker> _markers = {};
+
   @override
   void initState() {
     super.initState();
@@ -74,8 +76,8 @@ class ActiveRunPageState extends State<ActiveRunPage> {
   Future<void> _initializeRun() async {
     
     _addRoutePoint(LatLng(
-        widget.initialPosition.latitude,
-        widget.initialPosition.longitude
+      widget.initialPosition.latitude,
+      widget.initialPosition.longitude,
     ));
 
     
@@ -97,8 +99,8 @@ class ActiveRunPageState extends State<ActiveRunPage> {
     setState(() {
       _isTracking = true;
       _lastRecordedLocation = LatLng(
-          widget.initialPosition.latitude,
-          widget.initialPosition.longitude
+        widget.initialPosition.latitude,
+        widget.initialPosition.longitude,
       );
     });
   }
@@ -111,16 +113,17 @@ class ActiveRunPageState extends State<ActiveRunPage> {
     );
 
     
-    _locationSubscription = Geolocator.getPositionStream(
-        locationSettings: locationSettings
-    ).listen(_handleNewLocation);
+    _locationSubscription =
+        Geolocator.getPositionStream(locationSettings: locationSettings)
+            .listen(_handleNewLocation);
   }
 
   void _handleNewLocation(Position position) {
     if (!_isTracking || _manuallyPaused) return;
 
     
-    final currentPoint = LatLng(position.latitude, position.longitude);
+    final currentPoint =
+    LatLng(position.latitude, position.longitude);
 
     
     if (_lastRecordedLocation != null) {
@@ -161,11 +164,9 @@ class ActiveRunPageState extends State<ActiveRunPage> {
     _animateToUser(position);
   }
 
-
   void _addRoutePoint(LatLng point) {
     setState(() {
       _routePoints.add(point);
-
       _polylines = {
         Polyline(
           polylineId: const PolylineId('route'),
@@ -179,7 +180,7 @@ class ActiveRunPageState extends State<ActiveRunPage> {
 
   void _animateToUser(Position position) {
     _mapController?.animateCamera(
-        CameraUpdate.newLatLng(LatLng(position.latitude, position.longitude))
+      CameraUpdate.newLatLng(LatLng(position.latitude, position.longitude)),
     );
   }
 
@@ -193,6 +194,8 @@ class ActiveRunPageState extends State<ActiveRunPage> {
           _autoPaused = false;
           _stillCount = 0;
         });
+        
+        AnalyticsService().client.trackRunResumed(true);
       }
     } else {
       
@@ -202,6 +205,8 @@ class ActiveRunPageState extends State<ActiveRunPage> {
           setState(() {
             _autoPaused = true;
           });
+          
+          AnalyticsService().client.trackRunPaused(true);
         }
       } else {
         _stillCount = 0;
@@ -214,10 +219,9 @@ class ActiveRunPageState extends State<ActiveRunPage> {
     final double dLat = _degreesToRadians(lat2 - lat1);
     final double dLon = _degreesToRadians(lon2 - lon1);
 
-    final double a =
-        sin(dLat / 2) * sin(dLat / 2) +
-            cos(_degreesToRadians(lat1)) * cos(_degreesToRadians(lat2)) *
-                sin(dLon / 2) * sin(dLon / 2);
+    final double a = sin(dLat / 2) * sin(dLat / 2) +
+        cos(_degreesToRadians(lat1)) * cos(_degreesToRadians(lat2)) *
+            sin(dLon / 2) * sin(dLon / 2);
 
     final double c = 2 * atan2(sqrt(a), sqrt(1 - a));
     return earthRadius * c;
@@ -228,8 +232,6 @@ class ActiveRunPageState extends State<ActiveRunPage> {
   }
 
   void _updateCaloriesBurned() {
-    
-    
     
     final distanceKm = _distanceCovered / 1000;
     final calories = (distanceKm * 60).round();
@@ -243,6 +245,12 @@ class ActiveRunPageState extends State<ActiveRunPage> {
     setState(() {
       _manuallyPaused = !_manuallyPaused;
     });
+    
+    if (_manuallyPaused) {
+      AnalyticsService().client.trackRunPaused(false);
+    } else {
+      AnalyticsService().client.trackRunResumed(false);
+    }
   }
 
   Future<void> _endRunAndSave() async {
@@ -286,15 +294,20 @@ class ActiveRunPageState extends State<ActiveRunPage> {
       await _saveRunData();
 
       
+      await AnalyticsService().client.trackRunCompleted(
+        widget.journeyType,
+        _distanceCovered / 1000, 
+        _secondsElapsed,
+      );
+
+      
       if (mounted) Navigator.of(context).pop();
 
       
       Navigator.of(context).pushReplacementNamed('/challenges');
     } catch (e) {
-      
       if (mounted) Navigator.of(context).pop();
 
-      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Error saving run: ${e.toString()}")),
@@ -369,7 +382,6 @@ class ActiveRunPageState extends State<ActiveRunPage> {
   void _showRunSummary() {
     if (_runSummary == null) return;
 
-    
     final duration = Duration(seconds: _secondsElapsed);
     final hours = duration.inHours;
     final minutes = duration.inMinutes % 60;
@@ -378,15 +390,12 @@ class ActiveRunPageState extends State<ActiveRunPage> {
         ? '$hours:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}'
         : '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
 
-    
     final paceMinutes = _averagePace.floor();
     final paceSeconds = ((_averagePace - paceMinutes) * 60).round();
     final paceText = '$paceMinutes:${paceSeconds.toString().padLeft(2, '0')} min/km';
 
-    
     final distanceText = '${(_runSummary!['distanceKm'] as double).toStringAsFixed(2)} km';
 
-    
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -402,7 +411,6 @@ class ActiveRunPageState extends State<ActiveRunPage> {
         ),
         child: Column(
           children: [
-            
             Container(
               padding: const EdgeInsets.all(16),
               decoration: const BoxDecoration(
@@ -437,8 +445,6 @@ class ActiveRunPageState extends State<ActiveRunPage> {
                 ],
               ),
             ),
-
-            
             Expanded(
               child: SingleChildScrollView(
                 child: Padding(
@@ -446,7 +452,6 @@ class ActiveRunPageState extends State<ActiveRunPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      
                       if (_mapController != null)
                         Container(
                           height: 200,
@@ -458,8 +463,8 @@ class ActiveRunPageState extends State<ActiveRunPage> {
                                 target: _routePoints.isNotEmpty
                                     ? _routePoints[_routePoints.length ~/ 2]
                                     : LatLng(
-                                    widget.initialPosition.latitude,
-                                    widget.initialPosition.longitude
+                                  widget.initialPosition.latitude,
+                                  widget.initialPosition.longitude,
                                 ),
                                 zoom: 15,
                               ),
@@ -471,8 +476,6 @@ class ActiveRunPageState extends State<ActiveRunPage> {
                             ),
                           ),
                         ),
-
-                      
                       GridView.count(
                         crossAxisCount: 2,
                         mainAxisSpacing: 15,
@@ -487,17 +490,12 @@ class ActiveRunPageState extends State<ActiveRunPage> {
                           _buildStatCard('Calories', '${_caloriesBurned} kcal', Icons.local_fire_department),
                         ],
                       ),
-
                       const SizedBox(height: 20),
-
-                      
                       const Text(
                         'Challenge Progress',
                         style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
-
                       const SizedBox(height: 10),
-
                       LinearProgressIndicator(
                         value: _runSummary!['teamProgress'] / _runSummary!['requiredDistance'],
                         minHeight: 20,
@@ -505,21 +503,16 @@ class ActiveRunPageState extends State<ActiveRunPage> {
                         valueColor: AlwaysStoppedAnimation<Color>(_runSummary!['completed'] ? Colors.green : Colors.blue),
                         borderRadius: BorderRadius.circular(10),
                       ),
-
                       const SizedBox(height: 5),
-
                       Text(
                         '${(_runSummary!["teamProgress"] as double).toStringAsFixed(2)}/${_runSummary!["requiredDistance"].toStringAsFixed(2)} km',
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-
                       const SizedBox(height: 20),
-
-                      
                       Center(
                         child: ElevatedButton(
                           onPressed: () {
-                            Navigator.of(context).pop(); 
+                            Navigator.of(context).pop();
                             Navigator.of(context).pushReplacementNamed('/challenges');
                           },
                           style: ElevatedButton.styleFrom(
@@ -617,7 +610,6 @@ class ActiveRunPageState extends State<ActiveRunPage> {
             markers: Set<Marker>.of(_markers.values),
             onMapCreated: (controller) => _mapController = controller,
           ),
-
           
           Positioned(
             top: 0,
@@ -628,7 +620,6 @@ class ActiveRunPageState extends State<ActiveRunPage> {
               color: Colors.black.withOpacity(0.5),
             ),
           ),
-
           
           Positioned(
             top: MediaQuery.of(context).padding.top,
@@ -687,7 +678,6 @@ class ActiveRunPageState extends State<ActiveRunPage> {
               ),
             ),
           ),
-
           
           Positioned(
             bottom: 0,
@@ -729,7 +719,6 @@ class ActiveRunPageState extends State<ActiveRunPage> {
                         ),
                       ),
                     ),
-
                   
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -741,9 +730,7 @@ class ActiveRunPageState extends State<ActiveRunPage> {
                           : '--:--'),
                     ],
                   ),
-
                   const SizedBox(height: 16),
-
                   
                   SizedBox(
                     width: double.infinity,

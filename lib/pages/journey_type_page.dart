@@ -1,5 +1,5 @@
-
 import 'package:flutter/material.dart';
+import '../services/analytics_service.dart';
 
 class JourneyTypePage extends StatelessWidget {
   const JourneyTypePage({Key? key}) : super(key: key);
@@ -13,7 +13,7 @@ class JourneyTypePage extends StatelessWidget {
     
     final teamChallengeId = args.containsKey('team_challenge_id')
         ? args['team_challenge_id'] as int
-        : challengeId; 
+        : challengeId;
 
     return Scaffold(
       appBar: AppBar(
@@ -109,8 +109,9 @@ class JourneyTypePage extends StatelessWidget {
     );
   }
 
-  void _handleSoloRun(BuildContext context, int challengeId) {
+  Future<void> _handleSoloRun(BuildContext context, int challengeId) async {
     
+    await AnalyticsService().client.trackChallengeSelected(challengeId, 'solo', 0.0);
     Navigator.pushReplacementNamed(
       context,
       '/run_loading',
@@ -121,8 +122,9 @@ class JourneyTypePage extends StatelessWidget {
     );
   }
 
-  void _handleDuoRun(BuildContext context, int teamChallengeId) {
+  Future<void> _handleDuoRun(BuildContext context, int teamChallengeId) async {
     
+    await AnalyticsService().client.trackChallengeSelected(teamChallengeId, 'duo', 0.0);
     Navigator.pushReplacementNamed(
       context,
       '/duo_waiting_room',

@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/challenge.dart';
 import '../models/user.dart';
 import '../widgets/challenge_card.dart';
+import '../services/analytics_service.dart'; 
 
 class ChallengesPage extends StatefulWidget {
   const ChallengesPage({Key? key}) : super(key: key);
@@ -60,6 +61,7 @@ class _ChallengesPageState extends State<ChallengesPage> {
           .filter('date_left', 'is', null)
           .limit(1)
           .maybeSingle();
+
       if (teamMembershipResponse == null) {
         throw Exception('No active team membership found');
       }
@@ -73,6 +75,7 @@ class _ChallengesPageState extends State<ChallengesPage> {
           .eq('team_id', teamId)
           .eq('iscompleted', false)
           .order('team_challenge_id', ascending: false);
+
       final List activeTeamChallengesList = activeTeamChallengesResponse as List;
 
       
@@ -99,9 +102,9 @@ class _ChallengesPageState extends State<ChallengesPage> {
       dynamic activeTeamChallenge;
       if (teamChallengesWithDistance.isNotEmpty) {
         activeTeamChallenge = teamChallengesWithDistance.first;
-        
-        bool isTodayChallenge = challengesList.any((c) =>
-        c['challenge_id'] == activeTeamChallenge['challenge_id']);
+        final bool isTodayChallenge = challengesList.any(
+              (c) => c['challenge_id'] == activeTeamChallenge['challenge_id'],
+        );
         if (!isTodayChallenge) {
           activeTeamChallenge = null;
         }
@@ -118,8 +121,17 @@ class _ChallengesPageState extends State<ChallengesPage> {
   }
 
   Future<void> _handleChallengeAction(
-      Challenge challenge, dynamic activeTeamChallenge, BuildContext context) async {
+      Challenge challenge,
+      dynamic activeTeamChallenge,
+      BuildContext context,
+      ) async {
+    
     if (activeTeamChallenge != null) {
+      
+      AnalyticsService().client.trackEvent('challenge_continue', {
+        'challenge_id': challenge.challengeId,
+      });
+
       Navigator.pushNamed(
         context,
         '/journey_type',
@@ -130,13 +142,29 @@ class _ChallengesPageState extends State<ChallengesPage> {
       );
       return;
     }
+
+    
+    AnalyticsService().client.trackEvent('challenge_assign_attempt', {
+      'challenge_id': challenge.challengeId,
+    });
+
     final success = await _assignChallengeToTeam(challenge.challengeId, context);
     if (success) {
+      
+      AnalyticsService().client.trackEvent('challenge_assign_success', {
+        'challenge_id': challenge.challengeId,
+      });
+
       Navigator.pushNamed(
         context,
         '/journey_type',
         arguments: {'challenge_id': challenge.challengeId},
       );
+    } else {
+      
+      AnalyticsService().client.trackEvent('challenge_assign_fail', {
+        'challenge_id': challenge.challengeId,
+      });
     }
   }
 

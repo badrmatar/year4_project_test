@@ -46,6 +46,7 @@ dependencies:
   postgrest: ^2.4.1
   vector_math: ^2.1.4
   posthog_flutter: ^4.10.4
+  flutter_smartlook: ^4.1.25
 
   google_maps_flutter: ^2.10.0 # Official Google Maps SDK for Flutter
 

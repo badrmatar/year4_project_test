@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import '../services/analytics_service.dart'; 
 
 class CurrentLocationMapPage extends StatefulWidget {
   @override
@@ -15,6 +16,7 @@ class _CurrentLocationMapPageState extends State<CurrentLocationMapPage> {
   @override
   void initState() {
     super.initState();
+    AnalyticsService().client.trackEvent('map_page_viewed'); 
     _getCurrentLocation();
   }
 
@@ -26,7 +28,6 @@ class _CurrentLocationMapPageState extends State<CurrentLocationMapPage> {
         _isLoading = false;
       });
     } else {
-      
       setState(() {
         _isLoading = false;
       });
@@ -37,7 +38,6 @@ class _CurrentLocationMapPageState extends State<CurrentLocationMapPage> {
   Future<Position?> _determinePosition() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      
       return null;
     }
 
@@ -45,17 +45,14 @@ class _CurrentLocationMapPageState extends State<CurrentLocationMapPage> {
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        
         return null;
       }
     }
 
     if (permission == LocationPermission.deniedForever) {
-      
       return null;
     }
 
-    
     return await Geolocator.getCurrentPosition(
       desiredAccuracy: LocationAccuracy.high,
     );
@@ -96,7 +93,6 @@ class _CurrentLocationMapPageState extends State<CurrentLocationMapPage> {
               myLocationButtonEnabled: true,
             ),
           ),
-          
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Text(

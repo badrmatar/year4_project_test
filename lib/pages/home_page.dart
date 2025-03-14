@@ -5,11 +5,18 @@ import '../models/user.dart';
 import '../services/stats_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
+import '../services/analytics_service.dart'; 
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
 
-  
+  @override
+  _HomePageState createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  late Future<Map<String, dynamic>> _combinedStats;
+
   Future<Map<String, dynamic>> _getCombinedStats(int userId) async {
     final homeStats = await StatsService().getHomeStats(userId);
     final teamPoints = await StatsService().getTeamPointsForUser(userId);
@@ -17,10 +24,8 @@ class HomePage extends StatelessWidget {
     return homeStats;
   }
 
-  
   Future<int?> _getLeagueRoomId(int userId) async {
-    final url =
-        '${dotenv.env['SUPABASE_URL']}/functions/v1/get_active_league_room_id';
+    final url = '${dotenv.env['SUPABASE_URL']}/functions/v1/get_active_league_room_id';
     try {
       final response = await http.post(
         Uri.parse(url),
@@ -40,7 +45,6 @@ class HomePage extends StatelessWidget {
     return null;
   }
 
-  
   Future<bool> _logoutUser(int userId) async {
     final url = '${dotenv.env['SUPABASE_URL']}/functions/v1/user_logout';
     try {
@@ -58,7 +62,6 @@ class HomePage extends StatelessWidget {
     }
   }
 
-  
   Widget _buildTipCard({
     required IconData icon,
     required Color iconColor,
@@ -110,12 +113,21 @@ class HomePage extends StatelessWidget {
   }
 
   @override
+  void initState() {
+    super.initState();
+    final user = Provider.of<UserModel>(context, listen: false);
+    _combinedStats = _getCombinedStats(user.id);
+    
+    AnalyticsService().client.trackEvent('home_page_opened', {'user_id': user.id});
+  }
+
+  @override
   Widget build(BuildContext context) {
     final user = Provider.of<UserModel>(context);
     final int userId = user.id;
 
     return FutureBuilder<Map<String, dynamic>>(
-      future: _getCombinedStats(userId),
+      future: _combinedStats,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
@@ -140,8 +152,7 @@ class HomePage extends StatelessWidget {
               children: [
                 
                 Padding(
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -178,14 +189,12 @@ class HomePage extends StatelessWidget {
                               Navigator.pushReplacementNamed(context, '/login');
                             } else {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text("Logout failed")),
+                                const SnackBar(content: Text("Logout failed")),
                               );
                             }
                           },
                           child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             decoration: BoxDecoration(
                               gradient: const LinearGradient(
                                 colors: [Colors.deepOrange, Colors.orangeAccent],
@@ -195,8 +204,7 @@ class HomePage extends StatelessWidget {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: const [
-                                Icon(Icons.logout,
-                                    color: Colors.white, size: 18),
+                                Icon(Icons.logout, color: Colors.white, size: 18),
                                 SizedBox(width: 4),
                                 Text(
                                   "Logout",
@@ -215,8 +223,7 @@ class HomePage extends StatelessWidget {
                 ),
                 
                 Padding(
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -239,8 +246,7 @@ class HomePage extends StatelessWidget {
                               width: 32,
                               height: 32,
                               decoration: BoxDecoration(
-                                color:
-                                Colors.greenAccent.withOpacity(0.1),
+                                color: Colors.greenAccent.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: const Icon(
@@ -252,8 +258,7 @@ class HomePage extends StatelessWidget {
                             const SizedBox(width: 8),
                             const Text(
                               "Daily Streak",
-                              style:
-                              TextStyle(fontSize: 14, color: Colors.grey),
+                              style: TextStyle(fontSize: 14, color: Colors.grey),
                             ),
                           ],
                         ),
@@ -350,10 +355,7 @@ class HomePage extends StatelessWidget {
                           text:
                           "Get DOUBLE the challenge points if you run half the distance with your teammate!",
                           gradient: const LinearGradient(
-                            colors: [
-                              Color(0xFF3B9DFF),
-                              Color(0xFF00C6FF)
-                            ],
+                            colors: [Color(0xFF3B9DFF), Color(0xFF00C6FF)],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
@@ -365,10 +367,7 @@ class HomePage extends StatelessWidget {
                           text:
                           "Every 3-day streak you get 100 bonus points! Don't let it end!",
                           gradient: const LinearGradient(
-                            colors: [
-                              Color(0xFFFF8A00),
-                              Color(0xFFFF5252)
-                            ],
+                            colors: [Color(0xFFFF8A00), Color(0xFFFF5252)],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
@@ -380,10 +379,7 @@ class HomePage extends StatelessWidget {
                           text:
                           "Stay close to your runmate during the run - maximum 500m apart!",
                           gradient: const LinearGradient(
-                            colors: [
-                              Color(0xFF00B09B),
-                              Color(0xFF96C93D)
-                            ],
+                            colors: [Color(0xFF00B09B), Color(0xFF96C93D)],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),

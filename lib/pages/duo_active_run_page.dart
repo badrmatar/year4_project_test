@@ -13,8 +13,7 @@ import '../models/user.dart';
 import '../mixins/run_tracking_mixin.dart';
 import '../services/ios_location_bridge.dart';
 import '../constants/app_constants.dart';
-
-
+import '../services/analytics_service.dart'; 
 
 
 
@@ -87,7 +86,6 @@ class _DuoActiveRunPageState extends State<DuoActiveRunPage>
         setState(() {
           currentLocation = position;
         });
-
         _updateDuoWaitingRoom(position);
         _addSelfCircle(position);
       }
@@ -103,7 +101,6 @@ class _DuoActiveRunPageState extends State<DuoActiveRunPage>
 
       
       if (lastRecordedLocation != null) {
-        
         final segmentDistance = calculateDistance(
           lastRecordedLocation!.latitude,
           lastRecordedLocation!.longitude,
@@ -125,13 +122,14 @@ class _DuoActiveRunPageState extends State<DuoActiveRunPage>
             stillCounter++;
             if (stillCounter >= 5) {
               setState(() => autoPaused = true);
+              
+              AnalyticsService().client.trackRunPaused(true);
             }
           } else {
             stillCounter = 0;
           }
         }
 
-        
         if (!autoPaused && segmentDistance > 17) {
           setState(() {
             distanceCovered += segmentDistance;
@@ -139,7 +137,6 @@ class _DuoActiveRunPageState extends State<DuoActiveRunPage>
           });
         }
       } else {
-        
         setState(() {
           lastRecordedLocation = currentPoint;
         });
@@ -157,14 +154,10 @@ class _DuoActiveRunPageState extends State<DuoActiveRunPage>
         );
       });
 
-      
       _updateDuoWaitingRoom(position);
-
-      
       mapController?.animateCamera(CameraUpdate.newLatLng(currentPoint));
     });
   }
-
 
   
   void _startPartnerPolling() {
@@ -190,9 +183,7 @@ class _DuoActiveRunPageState extends State<DuoActiveRunPage>
   }
 
   
-  
   void _addSelfCircle(Position position) {
-    
     
   }
 
@@ -202,16 +193,14 @@ class _DuoActiveRunPageState extends State<DuoActiveRunPage>
     final circle = Circle(
       circleId: circleId,
       center: LatLng(position.latitude, position.longitude),
-      radius: 15, 
-      fillColor: Colors.green.withOpacity(0.5), 
-      strokeColor: Colors.white, 
+      radius: 15,
+      fillColor: Colors.green.withOpacity(0.5),
+      strokeColor: Colors.white,
       strokeWidth: 2,
     );
 
     setState(() {
       _circles[circleId] = circle;
-
-      
       final partnerPoint = LatLng(position.latitude, position.longitude);
       if (_partnerRoutePoints.isEmpty ||
           _partnerRoutePoints.last != partnerPoint) {
@@ -249,10 +238,6 @@ class _DuoActiveRunPageState extends State<DuoActiveRunPage>
   }
 
   
-  
-  
-  
-  
   Future<void> _pollPartnerStatus() async {
     if (currentLocation == null || !mounted) return;
     try {
@@ -268,6 +253,10 @@ class _DuoActiveRunPageState extends State<DuoActiveRunPage>
         final data = results.first as Map<String, dynamic>;
         
         if (data['has_ended'] == true) {
+          
+          await AnalyticsService().client.trackEvent('run_ended_due_to_partner', {
+            'challenge_id': widget.challengeId,
+          });
           await _endRunDueToPartner();
           return;
         }
@@ -295,7 +284,6 @@ class _DuoActiveRunPageState extends State<DuoActiveRunPage>
           headingAccuracy: 0.0,
         );
 
-        
         _addPartnerCircle(partnerPosition);
 
         setState(() {
@@ -309,6 +297,10 @@ class _DuoActiveRunPageState extends State<DuoActiveRunPage>
           }).match({
             'team_challenge_id': widget.challengeId,
             'user_id': user.id,
+          });
+          
+          await AnalyticsService().client.trackEvent('run_ended_due_to_max_distance', {
+            'challenge_id': widget.challengeId,
           });
           await _handleMaxDistanceExceeded();
           return;
@@ -343,6 +335,8 @@ class _DuoActiveRunPageState extends State<DuoActiveRunPage>
 
         
         startRun(initialPosition);
+        
+        await AnalyticsService().client.trackRunStarted('duo', widget.challengeId);
 
         
         _setupCustomLocationHandling();
@@ -370,32 +364,14 @@ class _DuoActiveRunPageState extends State<DuoActiveRunPage>
       notifyPartner: false,
       message: "Distance between teammates exceeded 500m. The run has ended.",
     );
-
-    if (mounted) {
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) {
-          return AlertDialog(
-            title: const Text('Run Ended'),
-            content: const Text(
-                'Distance between teammates exceeded 500m. The run has ended.'),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                child: const Text('OK'),
-              ),
-            ],
-          );
-        },
-      );
-    }
   }
 
   
   Future<void> _endRunManually() async {
+    
+    await AnalyticsService().client.trackEvent('run_ended_manually', {
+      'challenge_id': widget.challengeId,
+    });
     await _endRun(
       reason: 'manual',
       notifyPartner: true,
@@ -403,15 +379,6 @@ class _DuoActiveRunPageState extends State<DuoActiveRunPage>
     );
   }
 
-  
-  
-  
-  
-  
-  
-  
-  
-  
   
   Future<void> _endRun({
     required String reason,
@@ -443,6 +410,13 @@ class _DuoActiveRunPageState extends State<DuoActiveRunPage>
       await _saveRunData();
 
       
+      await AnalyticsService().client.trackRunCompleted(
+        'duo',
+        distanceCovered / 1000,
+        secondsElapsed,
+      );
+
+      
       final updatePromises = [
         supabase.from('user_contributions').update({
           'active': false,
@@ -454,12 +428,12 @@ class _DuoActiveRunPageState extends State<DuoActiveRunPage>
 
       if (notifyPartner) {
         updatePromises.add(
-            supabase.from('duo_waiting_room').update({
-              'has_ended': true,
-            }).match({
-              'team_challenge_id': widget.challengeId,
-              'user_id': user.id,
-            })
+          supabase.from('duo_waiting_room').update({
+            'has_ended': true,
+          }).match({
+            'team_challenge_id': widget.challengeId,
+            'user_id': user.id,
+          }),
         );
       }
 
@@ -536,12 +510,7 @@ class _DuoActiveRunPageState extends State<DuoActiveRunPage>
         throw Exception("Failed to save run: ${response.body}");
       }
     } catch (e) {
-      debugPrint('Error saving run data: $e. Challenge ID: ${widget.challengeId}');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("An error occurred: ${e.toString()}")),
-        );
-      }
+      throw Exception("An error occurred: ${e.toString()}");
     }
   }
 
@@ -609,9 +578,7 @@ class _DuoActiveRunPageState extends State<DuoActiveRunPage>
                 ),
               ),
               const SizedBox(height: 20),
-              CircularProgressIndicator(
-                color: currentLocation != null ? Colors.green : Colors.white,
-              ),
+              CircularProgressIndicator(),
               if (currentLocation != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 16.0),
@@ -649,8 +616,9 @@ class _DuoActiveRunPageState extends State<DuoActiveRunPage>
             : const LatLng(37.4219999, -122.0840575),
         zoom: 16,
       ),
-      myLocationEnabled: true, 
+      myLocationEnabled: true,
       myLocationButtonEnabled: true,
+      zoomControlsEnabled: false,
       polylines: {routePolyline, _partnerRoutePolyline},
       circles: Set<Circle>.of(_circles.values),
       onMapCreated: (controller) => mapController = controller,
@@ -747,6 +715,29 @@ class _DuoActiveRunPageState extends State<DuoActiveRunPage>
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildStatItem(String label, String value) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey[600],
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
     );
   }
 }

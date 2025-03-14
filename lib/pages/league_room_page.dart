@@ -1,10 +1,10 @@
-
 import 'package:flutter/material.dart';
 import '../widgets/league_table_header.dart';
 import '../widgets/league_team_item.dart';
 import '../widgets/empty_league_state.dart';
 import '../services/league_service.dart';
-import '../widgets/loading_indicator.dart'; 
+import '../widgets/loading_indicator.dart';
+import '../services/analytics_service.dart'; 
 
 class LeagueRoomPage extends StatefulWidget {
   final int userId;
@@ -25,6 +25,8 @@ class _LeagueRoomPageState extends State<LeagueRoomPage> {
   @override
   void initState() {
     super.initState();
+    
+    AnalyticsService().client.trackEvent('league_room_opened', {'user_id': widget.userId});
     _fetchLeagueRoomData();
   }
 
@@ -150,6 +152,9 @@ class _LeagueRoomPageState extends State<LeagueRoomPage> {
       final success = await LeagueService.endLeague(_leagueRoomId!);
 
       if (success && mounted) {
+        
+        AnalyticsService().client.trackEvent('league_ended', {'league_room_id': _leagueRoomId ?? 0});
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('League ended successfully!')),
         );

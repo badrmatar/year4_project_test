@@ -4,11 +4,13 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:convert';
 
 import '../models/waiting_room_user.dart';
+import '../services/analytics_service.dart'; 
 
 final String bearerToken = dotenv.env['BEARER_TOKEN']!;
 
 Future<int?> getWaitingRoomId(int userId) async {
-  final url = 'https:
+  final url =
+      'https:
   final headers = {
     'Content-Type': 'application/json',
     'Authorization': 'Bearer $bearerToken'
@@ -35,7 +37,8 @@ Future<int?> getWaitingRoomId(int userId) async {
 }
 
 Future<int?> getLeagueRoomId(int userId) async {
-  final url = 'https:
+  final url =
+      'https:
   final headers = {
     'Content-Type': 'application/json',
     'Authorization': 'Bearer $bearerToken',
@@ -62,7 +65,8 @@ Future<int?> getLeagueRoomId(int userId) async {
 }
 
 Future<int?> createWaitingRoom(int userId) async {
-  final url = 'https:
+  final url =
+      'https:
   final headers = {
     'Content-Type': 'application/json',
     'Authorization': 'Bearer $bearerToken',
@@ -89,7 +93,8 @@ Future<int?> createWaitingRoom(int userId) async {
 }
 
 Future<bool> joinWaitingRoom(int userId, int waitingRoomId) async {
-  final url = 'https:
+  final url =
+      'https:
   final headers = {
     'Content-Type': 'application/json',
     'Authorization': 'Bearer $bearerToken',
@@ -118,7 +123,8 @@ Future<bool> joinWaitingRoom(int userId, int waitingRoomId) async {
 }
 
 Future<bool> createLeagueRoom(int userId) async {
-  final url = 'https:
+  final url =
+      'https:
   final headers = {
     'Content-Type': 'application/json',
     'Authorization': 'Bearer $bearerToken',
@@ -128,7 +134,7 @@ Future<bool> createLeagueRoom(int userId) async {
     final response = await http.post(
       Uri.parse(url),
       headers: headers,
-      body: jsonEncode({ 'user_id': userId }),
+      body: jsonEncode({'user_id': userId}),
     );
 
     if (response.statusCode == 200) {
@@ -145,7 +151,8 @@ Future<bool> createLeagueRoom(int userId) async {
 }
 
 Future<List<WaitingRoomUser>> fetchWaitingRoomUsers(int waitingRoomId) async {
-  final url = 'https:
+  final url =
+      'https:
   final headers = {
     'Content-Type': 'application/json',
     'Authorization': 'Bearer $bearerToken',
@@ -155,7 +162,7 @@ Future<List<WaitingRoomUser>> fetchWaitingRoomUsers(int waitingRoomId) async {
     final response = await http.post(
       Uri.parse(url),
       headers: headers,
-      body: jsonEncode({ 'waiting_room_id': waitingRoomId }),
+      body: jsonEncode({'waiting_room_id': waitingRoomId}),
     );
 
     if (response.statusCode == 200) {
@@ -203,22 +210,26 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
   @override
   void initState() {
     super.initState();
+    
+    AnalyticsService().client.trackEvent('waiting_room_page_opened', {'user_id': widget.userId});
     _initializeLogic();
   }
 
   Future<void> _initializeLogic() async {
     setState(() => _isLoading = true);
-
     int? fetchedWaitingRoomId = await getWaitingRoomId(widget.userId);
-
     if (fetchedWaitingRoomId != null) {
       _waitingRoomId = fetchedWaitingRoomId;
       _waitingRoomUsers = await fetchWaitingRoomUsers(fetchedWaitingRoomId);
+      
+      AnalyticsService().client.trackEvent('waiting_room_loaded', {
+        'waiting_room_id': _waitingRoomId ?? 0,
+        'user_id': widget.userId,
+      });
     } else {
       int? fetchedLeagueRoomId = await getLeagueRoomId(widget.userId);
       _leagueRoomId = fetchedLeagueRoomId;
     }
-
     setState(() => _isLoading = false);
   }
 
@@ -228,6 +239,11 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
     if (newWaitingRoomId != null) {
       _waitingRoomId = newWaitingRoomId;
       _waitingRoomUsers = await fetchWaitingRoomUsers(newWaitingRoomId);
+      
+      AnalyticsService().client.trackEvent('waiting_room_created', {
+        'waiting_room_id': newWaitingRoomId,
+        'user_id': widget.userId,
+      });
     }
     setState(() => _isLoading = false);
   }
@@ -252,6 +268,11 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
     if (success) {
       _waitingRoomId = waitingRoomIdToJoin;
       _waitingRoomUsers = await fetchWaitingRoomUsers(waitingRoomIdToJoin);
+      
+      AnalyticsService().client.trackEvent('waiting_room_joined', {
+        'waiting_room_id': waitingRoomIdToJoin,
+        'user_id': widget.userId,
+      });
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Failed to join waiting room.")));
@@ -272,6 +293,11 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("League Room started successfully!")),
       );
+      
+      AnalyticsService().client.trackEvent('league_room_started', {
+        'league_room_id': _leagueRoomId ?? 0,
+        'user_id': widget.userId,
+      });
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Failed to start league room.")),
