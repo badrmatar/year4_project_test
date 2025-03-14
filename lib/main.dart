@@ -5,7 +5,9 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:year4_project/services/auth_service.dart';
+import 'package:year4_project/services/analytics_service.dart';
 
 import 'package:year4_project/models/user.dart';
 import 'package:year4_project/pages/home_page.dart';
@@ -20,6 +22,7 @@ import 'package:year4_project/pages/journey_type_page.dart';
 import 'package:year4_project/pages/duo_waiting_room_page.dart';
 import 'package:year4_project/services/team_service.dart';
 import 'package:year4_project/pages/history_page.dart';
+import 'package:year4_project/analytics_route_observer.dart';
 
 Future<void> initSupabase() async {
   await Supabase.initialize(
@@ -77,10 +80,37 @@ Future<void> requestLocationPermission() async {
   }
 }
 
+Future<void> initPosthog() async {
+  try {
+    
+    final config = PostHogConfig('phc_uiuWH9NvkviwjtUsHRwkc9qgXvsWwlobSFgpbe9lRnF') 
+      ..debug = true 
+      ..captureApplicationLifecycleEvents = true
+      ..host = 'https:
+
+    
+    await Posthog().setup(config);
+
+    
+    await Posthog().capture(
+      eventName: 'app_initialized',
+      properties: {
+        'timestamp': DateTime.now().toIso8601String(),
+        'platform': Platform.isAndroid ? 'Android' : 'iOS',
+      },
+    );
+
+    print('PostHog initialized with test event');
+  } catch (e) {
+    print('Error initializing PostHog: $e');
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load();
   await initSupabase();
+  await initPosthog();
 
   
   await requestLocationPermission();
@@ -100,6 +130,13 @@ void main() async {
         email: userData['email'],
         name: userData['name'],
       );
+
+      
+      await AnalyticsService().client.identifyUser(
+        userId: userData['id'].toString(),
+        email: userData['email'],
+        role: 'user',
+      );
     }
   }
 
@@ -115,8 +152,9 @@ void main() async {
 
 class MyApp extends StatelessWidget {
   final String initialRoute;
+  final _routeObserver = AnalyticsRouteObserver();
 
-  const MyApp({Key? key, required this.initialRoute}) : super(key: key);
+  MyApp({Key? key, required this.initialRoute}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -131,6 +169,7 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
+      navigatorObservers: [_routeObserver], 
       initialRoute: initialRoute,
       routes: {
         '/': (context) => const HomePage(),
