@@ -41,7 +41,7 @@ dependencies:
   provider: ^6.1.2
   json_annotation: ^4.8.1
   location: ^7.0.1
-  intl: ^0.20.1
+  intl: ^0.19.0
   geolocator: ^13.0.2  # Precise GPS location tracking
   postgrest: ^2.4.1
   vector_math: ^2.1.4
