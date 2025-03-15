@@ -8,7 +8,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:year4_project/services/auth_service.dart';
 import 'package:year4_project/services/analytics_service.dart';
-import 'package:flutter_uxcam/flutter_uxcam.dart';
 import 'package:year4_project/models/user.dart';
 import 'package:year4_project/pages/home_page.dart';
 import 'package:year4_project/pages/login_page.dart';
@@ -24,24 +23,7 @@ import 'package:year4_project/services/team_service.dart';
 import 'package:year4_project/pages/history_page.dart';
 import 'package:year4_project/analytics_route_observer.dart';
 
-
-Future<void> initUXCam() async {
-  try {
-    
-    
-    FlutterUxConfig config = FlutterUxConfig(userAppKey: "pse1vvwkr8reerf");
-
-    
-    await FlutterUxcam.startWithConfiguration(config);
-
-    
-    await FlutterUxcam.optIntoSchematicRecordings();
-
-    print('UXCam initialized successfully');
-  } catch (e) {
-    print('Error initializing UXCam: $e');
-  }
-}
+import 'package:flutter_smartlook/flutter_smartlook.dart';
 
 Future<void> initSupabase() async {
   await Supabase.initialize(
@@ -130,7 +112,6 @@ void main() async {
   await dotenv.load();
   await initSupabase();
   await initPosthog();
-  await initUXCam(); 
 
   
   await requestLocationPermission();
@@ -157,17 +138,6 @@ void main() async {
         email: userData['email'],
         role: 'user',
       );
-
-      
-      await FlutterUxcam.setUserIdentity(userData['id'].toString());
-
-      
-      try {
-        await FlutterUxcam.setUserProperty("email", userData['email']);
-        await FlutterUxcam.setUserProperty("name", userData['name']);
-      } catch (e) {
-        print('Could not set UXCam user properties: $e');
-      }
     }
   }
 
@@ -181,56 +151,61 @@ void main() async {
   );
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   final String initialRoute;
-  final _routeObserver = AnalyticsRouteObserver();
-  final _uxcamRouteObserver = UxcamRouteObserver();
+  const MyApp({Key? key, required this.initialRoute}) : super(key: key);
 
-  MyApp({Key? key, required this.initialRoute}) : super(key: key);
+  @override
+  _MyAppState createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  final _routeObserver = AnalyticsRouteObserver();
+  final Smartlook smartlook = Smartlook.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    
+    smartlook.start();
+    smartlook.preferences.setProjectKey('5e6af6d7c885ec62a1814ea8ed55fcafc2fa91d6'); 
+  }
 
   @override
   Widget build(BuildContext context) {
     final user = Provider.of<UserModel>(context);
-
     _checkUserTeam(user);
-
-    return MaterialApp(
-      title: 'Running App',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
+    return SmartlookRecordingWidget(
+      child: MaterialApp(
+        title: 'Running App',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          primarySwatch: Colors.blue,
+          visualDensity: VisualDensity.adaptivePlatformDensity,
+        ),
+        navigatorObservers: [_routeObserver],
+        initialRoute: widget.initialRoute,
+        routes: {
+          '/': (context) => const HomePage(),
+          '/home': (context) => const HomePage(),
+          '/login': (context) => const LoginPage(),
+          '/signup': (context) => const SignUpPage(),
+          '/waiting_room': (context) => WaitingRoomScreen(userId: user.id),
+          '/challenges': (context) => const ChallengesPage(),
+          '/journey_type': (context) => const JourneyTypePage(),
+          '/duo_waiting_room': (context) {
+            final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+            return DuoWaitingRoom(teamChallengeId: args['team_challenge_id'] as int);
+          },
+          '/run_loading': (context) => const RunLoadingPage(journeyType: 'solo', challengeId: 0),
+          '/league_room': (context) => LeagueRoomPage(userId: user.id),
+          '/history': (context) => const HistoryPage(),
+          '/duo_active_run': (context) {
+            final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+            return DuoActiveRunPage(challengeId: args['team_challenge_id'] as int);
+          },
+        },
       ),
-      navigatorObservers: [
-        _routeObserver, 
-        _uxcamRouteObserver, 
-      ],
-      initialRoute: initialRoute,
-      routes: {
-        '/': (context) => const HomePage(),
-        '/home': (context) => const HomePage(),
-        '/login': (context) => const LoginPage(),
-        '/signup': (context) => const SignUpPage(),
-        '/waiting_room': (context) => WaitingRoomScreen(userId: user.id),
-        '/challenges': (context) => const ChallengesPage(),
-        '/journey_type': (context) => const JourneyTypePage(),
-        '/duo_waiting_room': (context) {
-          final args = ModalRoute.of(context)!.settings.arguments
-          as Map<String, dynamic>;
-          return DuoWaitingRoom(teamChallengeId: args['team_challenge_id'] as int);
-        },
-        
-        '/run_loading': (context) =>
-        const RunLoadingPage(journeyType: 'solo', challengeId: 0),
-        '/league_room': (context) => LeagueRoomPage(userId: user.id),
-        '/history': (context) => const HistoryPage(),
-        
-        '/duo_active_run': (context) {
-          final args = ModalRoute.of(context)!.settings.arguments
-          as Map<String, dynamic>;
-          return DuoActiveRunPage(challengeId: args['team_challenge_id'] as int);
-        },
-      },
     );
   }
 
@@ -242,80 +217,6 @@ class MyApp extends StatelessWidget {
       print('User ${user.id} belongs to team ID: $teamId');
     } else {
       print('User ${user.id} does not belong to any active team.');
-    }
-  }
-}
-
-
-class UxcamRouteObserver extends NavigatorObserver {
-  
-  final Map<String, String> _screenNames = {
-    '/': 'Home',
-    '/home': 'Home',
-    '/login': 'Login',
-    '/signup': 'Signup',
-    '/waiting_room': 'Waiting Room',
-    '/challenges': 'Challenges',
-    '/journey_type': 'Journey Type',
-    '/duo_waiting_room': 'Duo Waiting Room',
-    '/run_loading': 'Run Loading',
-    '/league_room': 'League Room',
-    '/history': 'History',
-    '/duo_active_run': 'Duo Active Run',
-  };
-
-  @override
-  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    super.didPush(route, previousRoute);
-    _tagScreen(route);
-  }
-
-  @override
-  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
-    super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
-    if (newRoute != null) _tagScreen(newRoute);
-  }
-
-  @override
-  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    super.didPop(route, previousRoute);
-    if (previousRoute != null) _tagScreen(previousRoute);
-  }
-
-  void _tagScreen(Route<dynamic> route) {
-    if (route.settings.name != null) {
-      final routeName = route.settings.name!;
-
-      
-      final screenName = _screenNames[routeName] ?? routeName;
-
-      
-      String tagName = screenName;
-      if (route.settings.arguments != null) {
-        if (routeName == '/duo_waiting_room' || routeName == '/duo_active_run') {
-          try {
-            final args = route.settings.arguments as Map<String, dynamic>;
-            if (args.containsKey('team_challenge_id')) {
-              final challengeId = args['team_challenge_id'] as int;
-              tagName = '$screenName (ID: $challengeId)';
-            }
-          } catch (e) {
-            print('Error extracting arguments for UXCam: $e');
-          }
-        }
-      }
-
-      
-      
-      Future.delayed(const Duration(milliseconds: 1000), () {
-        
-        FlutterUxcam.tagScreenName(tagName);
-
-        
-        FlutterUxcam.logEvent('Screen View: $tagName');
-
-        print('UXCam: Tagged screen "$tagName" after loading delay');
-      });
     }
   }
 }

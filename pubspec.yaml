@@ -41,7 +41,7 @@ dependencies:
   provider: ^6.1.2
   json_annotation: ^4.8.1
   location: ^7.0.1
-  intl: ^0.20.1
+  intl: ^0.19.0
   geolocator: ^13.0.2  # Precise GPS location tracking
   postgrest: ^2.4.1
   vector_math: ^2.1.4
@@ -68,7 +68,8 @@ dev_dependencies:
   build_runner: ^2.4.6
   json_serializable: ^6.7.1
   mockito: ^5.4.4
-  flutter_uxcam: ^2.5.8
+  flutter_smartlook: ^4.1.25
+
 
 # For information on the generic Dart part of this file, see the
 # following page: https:
