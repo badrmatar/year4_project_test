@@ -46,7 +46,7 @@ dependencies:
   postgrest: ^2.4.1
   vector_math: ^2.1.4
   posthog_flutter: ^4.10.4
-  flutter_smartlook: ^4.1.25
+
 
   google_maps_flutter: ^2.10.0 # Official Google Maps SDK for Flutter
 
@@ -68,7 +68,7 @@ dev_dependencies:
   build_runner: ^2.4.6
   json_serializable: ^6.7.1
   mockito: ^5.4.4
-
+  flutter_uxcam: ^2.5.8
 
 # For information on the generic Dart part of this file, see the
 # following page: https:
