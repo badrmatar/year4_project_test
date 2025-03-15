@@ -4,12 +4,16 @@ import '../models/challenge.dart';
 class ChallengeCard extends StatelessWidget {
   final Challenge challenge;
   final dynamic activeTeamChallenge;
-  final Function(Challenge, dynamic, BuildContext) onPressed;
+  final dynamic completedTeamChallenge;
+  final bool hasChallengeToday;
+  final Function(Challenge, dynamic, dynamic, bool, BuildContext) onPressed;
 
   const ChallengeCard({
     Key? key,
     required this.challenge,
     this.activeTeamChallenge,
+    this.completedTeamChallenge,
+    this.hasChallengeToday = false,
     required this.onPressed,
   }) : super(key: key);
 
@@ -42,14 +46,30 @@ class ChallengeCard extends StatelessWidget {
     final isActiveChallenge = activeTeamChallenge != null &&
         activeTeamChallenge['challenge_id'] == challenge.challengeId;
 
+    final isCompletedChallenge = completedTeamChallenge != null &&
+        completedTeamChallenge['challenge_id'] == challenge.challengeId;
+
+    
+    final bool disableButton = (activeTeamChallenge != null && !isActiveChallenge) ||
+        (completedTeamChallenge != null && !isCompletedChallenge) ||
+        (hasChallengeToday && !isActiveChallenge && !isCompletedChallenge);
+
     final totalDistance = isActiveChallenge
         ? (((activeTeamChallenge['total_distance'] as num?)?.toDouble()) ?? 0.0) / 1000
+        : isCompletedChallenge
+        ? (((completedTeamChallenge['total_distance'] as num?)?.toDouble()) ?? 0.0) / 1000
         : 0.0;
+
     final duoDistance = isActiveChallenge
         ? (((activeTeamChallenge['duo_distance'] as num?)?.toDouble()) ?? 0.0) / 1000
+        : isCompletedChallenge
+        ? (((completedTeamChallenge['duo_distance'] as num?)?.toDouble()) ?? 0.0) / 1000
         : 0.0;
+
     final multiplier = isActiveChallenge
         ? ((activeTeamChallenge['multiplier'] as num?)?.toInt() ?? 1)
+        : isCompletedChallenge
+        ? ((completedTeamChallenge['multiplier'] as num?)?.toInt() ?? 1)
         : 1;
 
     return Card(
@@ -67,11 +87,11 @@ class ChallengeCard extends StatelessWidget {
                 ),
               ),
             ),
-            if (isActiveChallenge)
+            if (isActiveChallenge || isCompletedChallenge)
               Text(
                 '${totalDistance.toStringAsFixed(2)} km',
                 style: TextStyle(
-                  color: Colors.green[400],
+                  color: isCompletedChallenge ? Colors.green[400] : Colors.blue[400],
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -104,7 +124,7 @@ class ChallengeCard extends StatelessWidget {
               challenge.formattedDistance,
               style: const TextStyle(color: Colors.white70),
             ),
-            if (isActiveChallenge)
+            if (isActiveChallenge || isCompletedChallenge)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
@@ -112,18 +132,34 @@ class ChallengeCard extends StatelessWidget {
                   style: const TextStyle(color: Colors.white70),
                 ),
               ),
+            if (isCompletedChallenge)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  'Status: Completed',
+                  style: TextStyle(color: Colors.green[400], fontWeight: FontWeight.bold),
+                ),
+              ),
           ],
         ),
         trailing: ElevatedButton(
-          onPressed: activeTeamChallenge != null && !isActiveChallenge
+          onPressed: disableButton
               ? null
-              : () => onPressed(challenge, activeTeamChallenge, context),
+              : () => onPressed(challenge, activeTeamChallenge, completedTeamChallenge, hasChallengeToday, context),
           style: ElevatedButton.styleFrom(
-            backgroundColor: isActiveChallenge ? Colors.lightGreen : null,
+            backgroundColor: isCompletedChallenge
+                ? Colors.green
+                : isActiveChallenge
+                ? Colors.lightGreen
+                : null,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           ),
           child: Text(
-            isActiveChallenge ? 'Continue Run' : 'Start Run',
+            isCompletedChallenge
+                ? 'Completed'
+                : isActiveChallenge
+                ? 'Continue Run'
+                : 'Start Run',
             style: const TextStyle(fontSize: 16),
           ),
         ),

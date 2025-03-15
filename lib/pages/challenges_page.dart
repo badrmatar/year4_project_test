@@ -8,7 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/challenge.dart';
 import '../models/user.dart';
 import '../widgets/challenge_card.dart';
-import '../services/analytics_service.dart'; 
+import '../services/analytics_service.dart';
 
 class ChallengesPage extends StatefulWidget {
   const ChallengesPage({Key? key}) : super(key: key);
@@ -69,50 +69,56 @@ class _ChallengesPageState extends State<ChallengesPage> {
       final teamId = teamMembershipData['team_id'];
 
       
-      final activeTeamChallengesResponse = await supabase
+      final teamChallengesResponse = await supabase
           .from('team_challenges')
-          .select('*, user_contributions(distance_covered, journey_type)')
+          .select('*, challenges(start_time), user_contributions(distance_covered, journey_type)')
           .eq('team_id', teamId)
-          .eq('iscompleted', false)
           .order('team_challenge_id', ascending: false);
 
-      final List activeTeamChallengesList = activeTeamChallengesResponse as List;
+      final List allTeamChallengesList = teamChallengesResponse as List;
 
       
-      final teamChallengesWithDistance = activeTeamChallengesList.map((tc) {
-        final contributions = tc['user_contributions'] as List;
-        final totalDistance = contributions.fold<double>(
-          0,
-              (sum, contrib) => sum + (contrib['distance_covered'] ?? 0),
-        );
-        final duoDistance = contributions
-            .where((contrib) => contrib['journey_type'] == 'duo')
-            .fold<double>(
-          0,
-              (sum, contrib) => sum + (contrib['distance_covered'] ?? 0),
-        );
-        return {
-          ...tc,
-          'total_distance': totalDistance,
-          'duo_distance': duoDistance,
-        };
+      final currentDate = DateTime.now().toUtc();
+      final todayStart = DateTime.utc(currentDate.year, currentDate.month, currentDate.day);
+
+      final todaysTeamChallenges = allTeamChallengesList.where((tc) {
+        final challengeStartTime = tc['challenges'] != null ?
+        DateTime.parse(tc['challenges']['start_time']) : null;
+        if (challengeStartTime == null) return false;
+
+        return challengeStartTime.isAfter(todayStart) ||
+            (challengeStartTime.year == todayStart.year &&
+                challengeStartTime.month == todayStart.month &&
+                challengeStartTime.day == todayStart.day);
       }).toList();
 
       
+      final activeTeamChallenges = todaysTeamChallenges
+          .where((tc) => tc['iscompleted'] == false)
+          .toList();
+
+      
+      final completedTeamChallenges = todaysTeamChallenges
+          .where((tc) => tc['iscompleted'] == true)
+          .toList();
+
+      
       dynamic activeTeamChallenge;
-      if (teamChallengesWithDistance.isNotEmpty) {
-        activeTeamChallenge = teamChallengesWithDistance.first;
-        final bool isTodayChallenge = challengesList.any(
-              (c) => c['challenge_id'] == activeTeamChallenge['challenge_id'],
-        );
-        if (!isTodayChallenge) {
-          activeTeamChallenge = null;
-        }
+      if (activeTeamChallenges.isNotEmpty) {
+        activeTeamChallenge = _calculateDistances(activeTeamChallenges.first);
+      }
+
+      
+      dynamic completedTeamChallenge;
+      if (completedTeamChallenges.isNotEmpty) {
+        completedTeamChallenge = _calculateDistances(completedTeamChallenges.first);
       }
 
       return {
         'challenges': challengesList,
         'activeTeamChallenge': activeTeamChallenge,
+        'completedTeamChallenge': completedTeamChallenge,
+        'hasChallengeToday': todaysTeamChallenges.isNotEmpty,
       };
     } catch (e) {
       debugPrint('Error fetching challenges and team status: $e');
@@ -120,9 +126,31 @@ class _ChallengesPageState extends State<ChallengesPage> {
     }
   }
 
+  
+  dynamic _calculateDistances(dynamic teamChallenge) {
+    final contributions = teamChallenge['user_contributions'] as List? ?? [];
+    final totalDistance = contributions.fold<double>(
+      0,
+          (sum, contrib) => sum + (contrib['distance_covered'] ?? 0),
+    );
+    final duoDistance = contributions
+        .where((contrib) => contrib['journey_type'] == 'duo')
+        .fold<double>(
+      0,
+          (sum, contrib) => sum + (contrib['distance_covered'] ?? 0),
+    );
+    return {
+      ...teamChallenge,
+      'total_distance': totalDistance,
+      'duo_distance': duoDistance,
+    };
+  }
+
   Future<void> _handleChallengeAction(
       Challenge challenge,
       dynamic activeTeamChallenge,
+      dynamic completedTeamChallenge,
+      bool hasChallengeToday,
       BuildContext context,
       ) async {
     
@@ -139,6 +167,17 @@ class _ChallengesPageState extends State<ChallengesPage> {
           'challenge_id': challenge.challengeId,
           'team_challenge_id': activeTeamChallenge['team_challenge_id']
         },
+      );
+      return;
+    }
+
+    
+    if (completedTeamChallenge != null || hasChallengeToday) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Your team has already completed a challenge today. Only one challenge per day is allowed.'),
+          duration: Duration(seconds: 4),
+        ),
       );
       return;
     }
@@ -246,6 +285,8 @@ class _ChallengesPageState extends State<ChallengesPage> {
               .map((item) => Challenge.fromJson(item))
               .toList();
           final activeTeamChallenge = data['activeTeamChallenge'];
+          final completedTeamChallenge = data['completedTeamChallenge'];
+          final hasChallengeToday = data['hasChallengeToday'] ?? false;
 
           return ListView.builder(
             itemCount: challenges.length,
@@ -254,7 +295,10 @@ class _ChallengesPageState extends State<ChallengesPage> {
               return ChallengeCard(
                 challenge: challenge,
                 activeTeamChallenge: activeTeamChallenge,
-                onPressed: _handleChallengeAction,
+                completedTeamChallenge: completedTeamChallenge,
+                hasChallengeToday: hasChallengeToday,
+                onPressed: (chal, active, completed, hasChallenge, ctx) =>
+                    _handleChallengeAction(chal, active, completed, hasChallenge, ctx),
               );
             },
           );

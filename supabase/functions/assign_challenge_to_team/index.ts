@@ -98,25 +98,36 @@ serve(async (req: Request) => {
     const startOfDay = new Date(challengeData.start_time);
     startOfDay.setUTCHours(0, 0, 0, 0);
 
-    const { data: activeTeamChallenges, error: activeError } = await supabase
+    const { data: todaysChallenges, error: todaysChallengesError } = await supabase
       .from('team_challenges')
-      .select('team_challenge_id, challenges!inner(start_time)')
+      .select('team_challenge_id, iscompleted, challenges!inner(start_time)')
       .eq('team_id', team_id)
-      .eq('iscompleted', false)
       .gte('challenges.start_time', startOfDay.toISOString());
 
-    if (activeError) {
+    if (todaysChallengesError) {
       return new Response(
         JSON.stringify({ error: 'Error checking team challenges.' }),
         { status: 500 }
       );
     }
 
-    if (activeTeamChallenges && activeTeamChallenges.length > 0) {
-      return new Response(
-        JSON.stringify({ error: 'Team already has an active challenge for today.' }),
-        { status: 400 }
-      );
+    if (todaysChallenges && todaysChallenges.length > 0) {
+      
+      const completedChallenges = todaysChallenges.filter(challenge => challenge.iscompleted);
+
+      if (completedChallenges.length > 0) {
+        return new Response(
+          JSON.stringify({
+            error: 'Your team has already completed a challenge today. Only one challenge per day is allowed.'
+          }),
+          { status: 400 }
+        );
+      } else {
+        return new Response(
+          JSON.stringify({ error: 'Team already has an active challenge for today.' }),
+          { status: 400 }
+        );
+      }
     }
 
     

@@ -307,7 +307,7 @@ class UxcamRouteObserver extends NavigatorObserver {
 
       
       
-      Future.delayed(const Duration(milliseconds: 500), () {
+      Future.delayed(const Duration(milliseconds: 1000), () {
         
         FlutterUxcam.tagScreenName(tagName);
 

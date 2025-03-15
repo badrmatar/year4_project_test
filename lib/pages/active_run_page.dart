@@ -1,3 +1,4 @@
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
@@ -42,7 +43,6 @@ class ActiveRunPageState extends State<ActiveRunPage> {
   int _secondsElapsed = 0;
   double _distanceCovered = 0.0;
   double _currentSpeed = 0.0;
-  double _averagePace = 0.0;  
   int _caloriesBurned = 0;
 
   
@@ -146,12 +146,6 @@ class ActiveRunPageState extends State<ActiveRunPage> {
         setState(() {
           _distanceCovered += segmentDistance;
           _currentSpeed = speed;
-
-          
-          if (_distanceCovered > 0) {
-            final paceSeconds = _secondsElapsed / (_distanceCovered / 1000);
-            _averagePace = paceSeconds / 60;
-          }
 
           
           _lastRecordedLocation = currentPoint;
@@ -364,7 +358,6 @@ class ActiveRunPageState extends State<ActiveRunPage> {
           _runSummary = {
             'distanceKm': distance / 1000,
             'durationSeconds': _secondsElapsed,
-            'averagePaceMinPerKm': _averagePace,
             'caloriesBurned': _caloriesBurned,
             'completed': data['data']['challenge_completed'] ?? false,
             'teamProgress': data['data']['total_distance_km'] ?? 0,
@@ -389,10 +382,6 @@ class ActiveRunPageState extends State<ActiveRunPage> {
     final durationText = hours > 0
         ? '$hours:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}'
         : '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-
-    final paceMinutes = _averagePace.floor();
-    final paceSeconds = ((_averagePace - paceMinutes) * 60).round();
-    final paceText = '$paceMinutes:${paceSeconds.toString().padLeft(2, '0')} min/km';
 
     final distanceText = '${(_runSummary!['distanceKm'] as double).toStringAsFixed(2)} km';
 
@@ -486,7 +475,6 @@ class ActiveRunPageState extends State<ActiveRunPage> {
                         children: [
                           _buildStatCard('Distance', distanceText, Icons.straighten),
                           _buildStatCard('Duration', durationText, Icons.timer),
-                          _buildStatCard('Avg. Pace', paceText, Icons.speed),
                           _buildStatCard('Calories', '${_caloriesBurned} kcal', Icons.local_fire_department),
                         ],
                       ),
@@ -725,9 +713,6 @@ class ActiveRunPageState extends State<ActiveRunPage> {
                     children: [
                       _buildStatItem('DISTANCE', '${distanceKm.toStringAsFixed(2)} km'),
                       _buildStatItem('TIME', _formatTime(_secondsElapsed)),
-                      _buildStatItem('PACE', _averagePace > 0
-                          ? '${_averagePace.floor()}:${((_averagePace - _averagePace.floor()) * 60).round().toString().padLeft(2, '0')}'
-                          : '--:--'),
                     ],
                   ),
                   const SizedBox(height: 16),
