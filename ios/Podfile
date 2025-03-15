@@ -41,6 +41,7 @@ post_install do |installer|
         '$(inherited)',
         'PERMISSION_LOCATION=1',
       ]
+    config.build_settings['ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES'] = 'YES'
 
       # Set minimum iOS version
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
