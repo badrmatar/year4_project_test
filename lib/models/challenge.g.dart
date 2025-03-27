@@ -1,10 +1,5 @@
 
-
 part of 'challenge.dart';
-
-
-
-
 
 Challenge _$ChallengeFromJson(Map<String, dynamic> json) => Challenge(
       challengeId: (json['challenge_id'] as num).toInt(),

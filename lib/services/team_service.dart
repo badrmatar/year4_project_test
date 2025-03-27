@@ -3,7 +3,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 class TeamService {
   
-  
   Future<int?> fetchUserTeamId(int userId) async {
     final supabase = Supabase.instance.client;
 
@@ -16,13 +15,10 @@ class TeamService {
           .filter('date_left', 'is', null) 
           .maybeSingle();
 
-
-      
       if (response == null) {
         return null;
       }
 
-      
       if (response is Map<String, dynamic>) {
         return response['team_id'] as int?;
       }
@@ -34,10 +30,8 @@ class TeamService {
       return null;
     }
 
-
   }
 
-  
   Future<int?> fetchLeagueId(int teamId) async {
     final supabase = Supabase.instance.client;
 

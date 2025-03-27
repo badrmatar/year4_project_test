@@ -1,10 +1,5 @@
 
-
 part of 'team_membership.dart';
-
-
-
-
 
 TeamMembership _$TeamMembershipFromJson(Map<String, dynamic> json) =>
     TeamMembership(

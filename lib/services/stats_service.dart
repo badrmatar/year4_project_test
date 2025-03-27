@@ -9,7 +9,6 @@ class StatsService {
   Future<Map<String, dynamic>> getHomeStats(int userId) async {
     final DateTime now = DateTime.now().toUtc();
 
-    
     final Map<String, dynamic> stats = {
       'userName': 'Runner',
       'level': 1,
@@ -37,7 +36,6 @@ class StatsService {
         stats['userName'] = userResponse['name'] ?? 'Runner';
       }
 
-      
       final membershipResponse = await supabase
           .from('team_memberships')
           .select('team_id')
@@ -48,7 +46,6 @@ class StatsService {
       if (membershipResponse != null) {
         final teamId = membershipResponse['team_id'];
 
-        
         final teamResponse = await supabase
             .from('teams')
             .select('team_name, current_streak, streak_bonus_points, league_room_id')
@@ -61,8 +58,6 @@ class StatsService {
           stats['leagueRoomId'] = teamResponse['league_room_id'];
         }
 
-        
-        
         final activeChallengeResponse = await supabase
             .from('team_challenges')
             .select('''
@@ -100,11 +95,9 @@ class StatsService {
               }
             }
 
-            
             final double totalDistance = (challengeData['length'] ?? 0).toDouble();
             stats['challengeTotalDistance'] = totalDistance;
 
-            
             final List<dynamic> contributions =
                 activeChallengeResponse['user_contributions'] ?? [];
             double totalDistanceCovered = 0.0;
@@ -115,7 +108,6 @@ class StatsService {
             final double distanceKm = totalDistanceCovered / 1000.0;
             stats['challengeDistanceCompleted'] = distanceKm;
 
-            
             if (totalDistance > 0) {
               stats['challengeProgressPercent'] =
                   ((distanceKm / totalDistance) * 100).toInt();
@@ -123,8 +115,6 @@ class StatsService {
           }
         }
 
-        
-        
         final activeMembersResponse = await supabase
             .from('team_memberships')
             .select('user_id')
@@ -140,7 +130,6 @@ class StatsService {
               .select('distance_covered')
               .filter('user_id', 'in', memberIdsString);
 
-
           double totalTeamDistance = 0.0;
           for (var contrib in contributionsResponse) {
             totalTeamDistance += (contrib['distance_covered'] as num).toDouble();
@@ -150,7 +139,6 @@ class StatsService {
         }
       }
 
-      
       final startOfDay = DateTime.utc(now.year, now.month, now.day);
       final endOfDay = startOfDay.add(const Duration(days: 1));
       final personalResponse = await supabase

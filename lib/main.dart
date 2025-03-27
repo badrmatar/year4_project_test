@@ -65,7 +65,6 @@ Future<void> requestLocationPermission() async {
       }
     }
 
-    
     try {
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
@@ -89,10 +88,8 @@ Future<void> initPosthog() async {
       ..captureApplicationLifecycleEvents = true
       ..host = 'https:
 
-    
     await Posthog().setup(config);
 
-    
     await Posthog().capture(
       eventName: 'app_initialized',
       properties: {
@@ -113,16 +110,13 @@ void main() async {
   await initSupabase();
   await initPosthog();
 
-  
   await requestLocationPermission();
 
   final authService = AuthService();
   final isAuthenticated = await authService.checkAuthStatus();
 
-  
   UserModel initialUserModel = UserModel(id: 0, email: '', name: '');
 
-  
   if (isAuthenticated) {
     final userData = await authService.restoreUserSession();
     if (userData != null) {
@@ -132,7 +126,6 @@ void main() async {
         name: userData['name'],
       );
 
-      
       await AnalyticsService().client.identifyUser(
         userId: userData['id'].toString(),
         email: userData['email'],

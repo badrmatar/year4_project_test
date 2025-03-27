@@ -1,10 +1,5 @@
 
-
 part of 'team_challenge.dart';
-
-
-
-
 
 TeamChallenge _$TeamChallengeFromJson(Map<String, dynamic> json) =>
     TeamChallenge(

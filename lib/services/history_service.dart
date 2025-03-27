@@ -26,7 +26,6 @@ class HistoryService {
           ''')
           .eq('user_id', userId);
 
-      
       final personalResponse = await supabase
           .from('user_contributions')
           .select('''

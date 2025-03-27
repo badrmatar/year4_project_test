@@ -28,7 +28,6 @@ class _LeagueRoomPageState extends State<LeagueRoomPage> {
     _fetchLeagueRoomData();
   }
 
-  
   String _getCleanTeamName(String teamName) {
     final regex = RegExp(r'^(.*?)(?:\s*\d+)?$');
     final match = regex.firstMatch(teamName);

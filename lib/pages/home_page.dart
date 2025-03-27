@@ -9,7 +9,6 @@ import 'package:http/http.dart' as http;
 class HomePage extends StatelessWidget {
   const HomePage({Key? key}) : super(key: key);
 
-  
   Future<Map<String, dynamic>> _getCombinedStats(int userId) async {
     final homeStats = await StatsService().getHomeStats(userId);
     final teamPoints = await StatsService().getTeamPointsForUser(userId);
@@ -17,7 +16,6 @@ class HomePage extends StatelessWidget {
     return homeStats;
   }
 
-  
   Future<int?> _getLeagueRoomId(int userId) async {
     final url =
         '${dotenv.env['SUPABASE_URL']}/functions/v1/get_active_league_room_id';
@@ -40,7 +38,6 @@ class HomePage extends StatelessWidget {
     return null;
   }
 
-  
   Future<bool> _logoutUser(int userId) async {
     final url = '${dotenv.env['SUPABASE_URL']}/functions/v1/user_logout';
     try {
@@ -58,7 +55,6 @@ class HomePage extends StatelessWidget {
     }
   }
 
-  
   Widget _buildTipCard({
     required IconData icon,
     required Color iconColor,

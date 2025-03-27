@@ -1,5 +1,4 @@
 
-
 import 'package:flutter/foundation.dart';
 
 class UserModel with ChangeNotifier {
@@ -7,7 +6,6 @@ class UserModel with ChangeNotifier {
   String _email;
   String _name;
   
-
   UserModel({
     required int id,
     required String email,

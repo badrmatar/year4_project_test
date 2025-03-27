@@ -55,7 +55,6 @@ class _CurrentLocationMapPageState extends State<CurrentLocationMapPage> {
       return null;
     }
 
-    
     return await Geolocator.getCurrentPosition(
       desiredAccuracy: LocationAccuracy.high,
     );

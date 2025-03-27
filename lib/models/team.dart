@@ -11,12 +11,9 @@ class Team {
   @JsonKey(name: 'team_name')
   final String teamName;
 
-  
   @JsonKey(name: 'current_streak')
   final int? currentStreak;
 
-  
-  
   @JsonKey(name: 'last_completion_date')
   final DateTime? lastCompletionDate;
 
@@ -31,7 +28,6 @@ class Team {
     this.leagueRoomId,
   });
 
-  
   factory Team.fromJson(Map<String, dynamic> json) => _$TeamFromJson(json);
   Map<String, dynamic> toJson() => _$TeamToJson(this);
 }

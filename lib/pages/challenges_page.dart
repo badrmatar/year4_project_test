@@ -52,7 +52,6 @@ class _ChallengesPageState extends State<ChallengesPage> {
           .lt('start_time', endOfDay.toIso8601String());
       final List challengesList = challengesResponse as List;
 
-      
       final teamMembershipResponse = await supabase
           .from('team_memberships')
           .select('team_id')
@@ -66,7 +65,6 @@ class _ChallengesPageState extends State<ChallengesPage> {
       final Map teamMembershipData = teamMembershipResponse;
       final teamId = teamMembershipData['team_id'];
 
-      
       final activeTeamChallengesResponse = await supabase
           .from('team_challenges')
           .select('*, user_contributions(distance_covered, journey_type)')
@@ -75,7 +73,6 @@ class _ChallengesPageState extends State<ChallengesPage> {
           .order('team_challenge_id', ascending: false);
       final List activeTeamChallengesList = activeTeamChallengesResponse as List;
 
-      
       final teamChallengesWithDistance = activeTeamChallengesList.map((tc) {
         final contributions = tc['user_contributions'] as List;
         final totalDistance = contributions.fold<double>(
@@ -95,7 +92,6 @@ class _ChallengesPageState extends State<ChallengesPage> {
         };
       }).toList();
 
-      
       dynamic activeTeamChallenge;
       if (teamChallengesWithDistance.isNotEmpty) {
         activeTeamChallenge = teamChallengesWithDistance.first;

@@ -31,7 +31,6 @@ class _RunLoadingPageState extends State<RunLoadingPage> {
   Timer? _elapsedTimer;
   Timer? _autoStartTimer;
 
-  
   static const int AUTO_START_SECONDS = 5;
   static const double ACCEPTABLE_ACCURACY = 60.0; 
   static const double GOOD_ACCURACY = 50.0; 
@@ -41,14 +40,12 @@ class _RunLoadingPageState extends State<RunLoadingPage> {
     super.initState();
     _initializeLocationTracking();
 
-    
     _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
       if (mounted) {
         setState(() {
           _elapsedSeconds++;
         });
 
-        
         try {
           final newPosition = await _locationService.refreshCurrentLocation();
           if (mounted && newPosition != null) {
@@ -64,7 +61,6 @@ class _RunLoadingPageState extends State<RunLoadingPage> {
           print('Error getting fresh location: $e');
         }
 
-        
         if (_elapsedSeconds >= AUTO_START_SECONDS && _bestPosition != null) {
           if (_bestPosition!.accuracy <= ACCEPTABLE_ACCURACY) {
             
@@ -132,23 +128,18 @@ class _RunLoadingPageState extends State<RunLoadingPage> {
       });
     });
 
-    
     _locationService.positionStream.listen((position) {
       if (!mounted) return;
 
-      
       print('Position update: lat=${position.latitude}, lng=${position.longitude}, acc=${position.accuracy}m');
 
-      
       setState(() {
         
         if (_bestPosition == null || position.accuracy < _bestPosition!.accuracy) {
           _bestPosition = position;
 
-          
           print('New best position! Accuracy: ${position.accuracy}m');
 
-          
           if (position.accuracy < GOOD_ACCURACY) {
             _isWaitingForSignal = false;
             _hasGoodSignal = true;
@@ -160,8 +151,6 @@ class _RunLoadingPageState extends State<RunLoadingPage> {
           }
         }
 
-        
-        
         if (_bestPosition != null) {
           
           if (_elapsedSeconds >= AUTO_START_SECONDS && _bestPosition!.accuracy <= ACCEPTABLE_ACCURACY) {
@@ -170,7 +159,6 @@ class _RunLoadingPageState extends State<RunLoadingPage> {
         }
       });
 
-      
       if (_elapsedSeconds >= AUTO_START_SECONDS &&
           _bestPosition != null &&
           _bestPosition!.accuracy <= ACCEPTABLE_ACCURACY) {
@@ -187,7 +175,6 @@ class _RunLoadingPageState extends State<RunLoadingPage> {
   void _startRun() {
     if (_bestPosition == null) return;
 
-    
     _elapsedTimer?.cancel();
     _autoStartTimer?.cancel();
 
@@ -209,7 +196,6 @@ class _RunLoadingPageState extends State<RunLoadingPage> {
     _elapsedTimer?.cancel();
     _autoStartTimer?.cancel();
 
-    
     print('RunLoadingPage disposed, all resources cleaned up');
     super.dispose();
   }
@@ -376,7 +362,6 @@ class _RunLoadingPageState extends State<RunLoadingPage> {
                 ),
               ),
 
-              
               if (_elapsedSeconds >= AUTO_START_SECONDS && _bestPosition!.accuracy > ACCEPTABLE_ACCURACY)
                 Container(
                   width: 200,

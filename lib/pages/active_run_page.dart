@@ -31,10 +31,8 @@ class ActiveRunPageState extends State<ActiveRunPage> {
   
   final LocationService _locationService = LocationService();
 
-  
   GoogleMapController? _mapController;
 
-  
   bool _isTracking = false;
   bool _autoPaused = false;
   bool _manuallyPaused = false;
@@ -42,25 +40,19 @@ class ActiveRunPageState extends State<ActiveRunPage> {
   double _distanceCovered = 0.0;
   double _currentSpeed = 0.0;
 
-  
   List<LatLng> _routePoints = [];
   Set<Polyline> _polylines = {};
 
-  
   Timer? _runTimer;
 
-  
   int _stillCount = 0;
   static const _pauseThreshold = 0.5;  
   static const _resumeThreshold = 1.0;  
 
-  
   StreamSubscription<Position>? _locationSubscription;
 
-  
   Map<String, dynamic>? _runSummary;
 
-  
   LatLng? _lastRecordedLocation;
   final Map<MarkerId, Marker> _markers = {};
   @override
@@ -76,7 +68,6 @@ class ActiveRunPageState extends State<ActiveRunPage> {
         widget.initialPosition.longitude
     ));
 
-    
     _runTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!_autoPaused && !_manuallyPaused && mounted) {
         setState(() {
@@ -85,7 +76,6 @@ class ActiveRunPageState extends State<ActiveRunPage> {
       }
     });
 
-    
     _startLocationTracking();
 
     setState(() {
@@ -104,7 +94,6 @@ class ActiveRunPageState extends State<ActiveRunPage> {
       distanceFilter: 5, 
     );
 
-    
     _locationSubscription = Geolocator.getPositionStream(
         locationSettings: locationSettings
     ).listen(_handleNewLocation);
@@ -113,10 +102,8 @@ class ActiveRunPageState extends State<ActiveRunPage> {
   void _handleNewLocation(Position position) {
     if (!_isTracking || _manuallyPaused) return;
 
-    
     final currentPoint = LatLng(position.latitude, position.longitude);
 
-    
     if (_lastRecordedLocation != null) {
       
       final segmentDistance = _calculateDistance(
@@ -126,28 +113,21 @@ class ActiveRunPageState extends State<ActiveRunPage> {
         currentPoint.longitude,
       );
 
-      
       final speed = position.speed >= 0 ? position.speed : 0.0;
 
-      
-
-      
       if (segmentDistance > 15) {
         setState(() {
           _distanceCovered += segmentDistance;
           _currentSpeed = speed;
 
-          
           _lastRecordedLocation = currentPoint;
         });
       }
     }
 
-    
     _addRoutePoint(currentPoint);
     _animateToUser(position);
   }
-
 
   void _addRoutePoint(LatLng point) {
     setState(() {
@@ -169,7 +149,6 @@ class ActiveRunPageState extends State<ActiveRunPage> {
         CameraUpdate.newLatLng(LatLng(position.latitude, position.longitude))
     );
   }
-
 
   double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
     const double earthRadius = 6371000.0; 
@@ -203,7 +182,6 @@ class ActiveRunPageState extends State<ActiveRunPage> {
       return;
     }
 
-    
     _locationSubscription?.cancel();
     _runTimer?.cancel();
 
@@ -211,7 +189,6 @@ class ActiveRunPageState extends State<ActiveRunPage> {
       _isTracking = false;
     });
 
-    
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -235,16 +212,13 @@ class ActiveRunPageState extends State<ActiveRunPage> {
     try {
       await _saveRunData();
 
-      
       if (mounted) Navigator.of(context).pop();
 
-      
       Navigator.of(context).pushReplacementNamed('/challenges');
     } catch (e) {
       
       if (mounted) Navigator.of(context).pop();
 
-      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Error saving run: ${e.toString()}")),
@@ -317,7 +291,6 @@ class ActiveRunPageState extends State<ActiveRunPage> {
   void _showRunSummary() {
     if (_runSummary == null) return;
 
-    
     final duration = Duration(seconds: _secondsElapsed);
     final hours = duration.inHours;
     final minutes = duration.inMinutes % 60;
@@ -326,10 +299,8 @@ class ActiveRunPageState extends State<ActiveRunPage> {
         ? '$hours:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}'
         : '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
 
-    
     final distanceText = '${(_runSummary!['distanceKm'] as double).toStringAsFixed(2)} km';
 
-    
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -381,7 +352,6 @@ class ActiveRunPageState extends State<ActiveRunPage> {
               ),
             ),
 
-            
             Expanded(
               child: SingleChildScrollView(
                 child: Padding(
@@ -415,7 +385,6 @@ class ActiveRunPageState extends State<ActiveRunPage> {
                           ),
                         ),
 
-                      
                       GridView.count(
                         crossAxisCount: 2,
                         mainAxisSpacing: 15,
@@ -431,7 +400,6 @@ class ActiveRunPageState extends State<ActiveRunPage> {
 
                       const SizedBox(height: 20),
 
-                      
                       const Text(
                         'Challenge Progress',
                         style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -456,7 +424,6 @@ class ActiveRunPageState extends State<ActiveRunPage> {
 
                       const SizedBox(height: 20),
 
-                      
                       Center(
                         child: ElevatedButton(
                           onPressed: () {
@@ -559,7 +526,6 @@ class ActiveRunPageState extends State<ActiveRunPage> {
             onMapCreated: (controller) => _mapController = controller,
           ),
 
-          
           Positioned(
             top: 0,
             left: 0,
@@ -570,7 +536,6 @@ class ActiveRunPageState extends State<ActiveRunPage> {
             ),
           ),
 
-          
           Positioned(
             top: MediaQuery.of(context).padding.top,
             left: 0,
@@ -629,7 +594,6 @@ class ActiveRunPageState extends State<ActiveRunPage> {
             ),
           ),
 
-          
           Positioned(
             bottom: 0,
             left: 0,
@@ -671,7 +635,6 @@ class ActiveRunPageState extends State<ActiveRunPage> {
                       ),
                     ),
 
-                  
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
@@ -682,7 +645,6 @@ class ActiveRunPageState extends State<ActiveRunPage> {
 
                   const SizedBox(height: 16),
 
-                  
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(

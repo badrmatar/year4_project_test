@@ -28,16 +28,13 @@ class Challenge {
     this.length,
   });
 
-  
   String get formattedDistance {
     if (length == null) return 'Distance: N/A';
     return 'Distance: ${length?.toStringAsFixed(1)} km';
   }
 
-  
   factory Challenge.fromJson(Map<String, dynamic> json) =>
       _$ChallengeFromJson(json);
 
-  
   Map<String, dynamic> toJson() => _$ChallengeToJson(this);
 }

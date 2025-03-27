@@ -1,10 +1,5 @@
 
-
 part of 'user_contribution.dart';
-
-
-
-
 
 UserContribution _$UserContributionFromJson(Map<String, dynamic> json) =>
     UserContribution(

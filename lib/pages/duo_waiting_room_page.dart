@@ -32,7 +32,6 @@ class _DuoWaitingRoomState extends State<DuoWaitingRoom> {
   static const double REQUIRED_PROXIMITY = 200; 
   static const double STARTING_PROXIMITY = 100; 
 
-  
   bool _isReady = false;
   bool _hasTeammate = false;
 
@@ -74,7 +73,6 @@ class _DuoWaitingRoomState extends State<DuoWaitingRoom> {
         'team_challenge_id': widget.teamChallengeId,
       });
 
-      
       final staleTime = DateTime.now().subtract(const Duration(seconds: 30));
       await supabase
           .from('duo_waiting_room')
@@ -129,7 +127,6 @@ class _DuoWaitingRoomState extends State<DuoWaitingRoom> {
     
     _statusCheckTimer?.cancel();
 
-    
     _statusCheckTimer = Timer.periodic(
       const Duration(milliseconds: 500),
           (_) => _checkWaitingRoomStatus(),
@@ -142,7 +139,6 @@ class _DuoWaitingRoomState extends State<DuoWaitingRoom> {
     try {
       final user = Provider.of<UserModel>(context, listen: false);
 
-      
       final response = await supabase
           .from('duo_waiting_room')
           .select('*, users(name)')
@@ -151,7 +147,6 @@ class _DuoWaitingRoomState extends State<DuoWaitingRoom> {
 
       final rows = response as List;
 
-      
       Map<String, dynamic>? teammateEntry;
       bool bothUsersPresent = false;
 
@@ -168,7 +163,6 @@ class _DuoWaitingRoomState extends State<DuoWaitingRoom> {
         }
       }
 
-      
       if (teammateEntry != null) {
         final lastUpdate = DateTime.parse(teammateEntry['last_update']);
         final timeDiff = DateTime.now().difference(lastUpdate).inSeconds;
@@ -181,7 +175,6 @@ class _DuoWaitingRoomState extends State<DuoWaitingRoom> {
         }
       }
 
-      
       if (bothUsersPresent && _currentLocation != null) {
         _updateLocationInWaitingRoom();
       }
@@ -193,7 +186,6 @@ class _DuoWaitingRoomState extends State<DuoWaitingRoom> {
         });
       }
 
-      
       if (teammateEntry != null && _currentLocation != null) {
         final partnerLat = teammateEntry['current_latitude'] as num;
         final partnerLng = teammateEntry['current_longitude'] as num;
@@ -217,7 +209,6 @@ class _DuoWaitingRoomState extends State<DuoWaitingRoom> {
         }
       }
 
-      
       if (bothUsersPresent) {
         final allReady = rows.every((row) => row['is_ready'] == true);
         final allRecent = rows.every((row) {
@@ -225,7 +216,6 @@ class _DuoWaitingRoomState extends State<DuoWaitingRoom> {
           return DateTime.now().difference(updatedAt).inSeconds < 10;
         });
 
-        
         final isCloseEnough = _teammateDistance != null && _teammateDistance! <= STARTING_PROXIMITY;
 
         if (allReady && allRecent && isCloseEnough) {
@@ -288,7 +278,6 @@ class _DuoWaitingRoomState extends State<DuoWaitingRoom> {
   Future<void> _setReady() async {
     final user = Provider.of<UserModel>(context, listen: false);
 
-    
     if (_teammateDistance == null || _teammateDistance! > STARTING_PROXIMITY) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
